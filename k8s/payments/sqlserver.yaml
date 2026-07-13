@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments-sqlserver
+  namespace: fcg
+  labels:
+    app: payments-sqlserver
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: payments-sqlserver
+
+  template:
+    metadata:
+      labels:
+        app: payments-sqlserver
+
+    spec:
+      containers:
+        - name: payments-sqlserver
+          image: mcr.microsoft.com/mssql/server:2022-latest
+
+          ports:
+            - name: sql
+              containerPort: 1433
+              protocol: TCP
+
+          env:
+            - name: ACCEPT_EULA
+              value: "Y"
+
+            - name: MSSQL_SA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: fcg-payments-secret
+                  key: SqlServer__SaPassword
+
+          volumeMounts:
+            - name: payments-sqlserver-storage
+              mountPath: /var/opt/mssql
+
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+
+            limits:
+              cpu: "1"
+              memory: "2Gi"
+
+      volumes:
+        - name: payments-sqlserver-storage
+          persistentVolumeClaim:
+            claimName: payments-sqlserver-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payments-sqlserver
+  namespace: fcg
+  labels:
+    app: payments-sqlserver
+spec:
+  type: ClusterIP
+
+  selector:
+    app: payments-sqlserver
+
+  ports:
+    - name: sql
+      protocol: TCP
+      port: 1433
+      targetPort: 1433
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: payments-sqlserver-pvc
+  namespace: fcg
+spec:
+  accessModes:
+    - ReadWriteOnce
+
+  resources:
+    requests:
+      storage: 2Gi

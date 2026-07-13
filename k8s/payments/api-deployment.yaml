@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fcg-payments-api
+  namespace: fcg
+  labels:
+    app: fcg-payments-api
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: fcg-payments-api
+
+  template:
+    metadata:
+      labels:
+        app: fcg-payments-api
+
+    spec:
+      initContainers:
+        - name: wait-for-infrastructure
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z payments-sqlserver 1433; do
+                echo "Aguardando SQL Server do Payments..."
+                sleep 5
+              done
+
+              until nc -z rabbitmq 5672; do
+                echo "Aguardando RabbitMQ..."
+                sleep 5
+              done
+
+      containers:
+        - name: fcg-payments-api
+          image: brnmatos/fcg-payments-api:1.0.1
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+
+          envFrom:
+            - configMapRef:
+                name: fcg-payments-config
+
+            - secretRef:
+                name: fcg-payments-secret
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

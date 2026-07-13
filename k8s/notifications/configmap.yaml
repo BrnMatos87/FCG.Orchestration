@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fcg-notifications-config
+  namespace: fcg
+data:
+  DOTNET_ENVIRONMENT: "Development"
+
+  RabbitMq__Host: "rabbitmq"
+  RabbitMq__Port: "5672"
+  RabbitMq__VirtualHost: "/"
+
+  RabbitMq__UserCreatedQueue: "notifications-user-created"
+  RabbitMq__PaymentProcessedQueue: "notifications-payment-processed"

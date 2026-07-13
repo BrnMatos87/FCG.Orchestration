@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fcg-users-api
+  namespace: fcg
+  labels:
+    app: fcg-users-api
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: fcg-users-api
+
+  template:
+    metadata:
+      labels:
+        app: fcg-users-api
+
+    spec:
+      containers:
+        - name: fcg-users-api
+          image: brnmatos/fcg-users-api:1.0.1
+
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+
+          envFrom:
+            - configMapRef:
+                name: fcg-users-config
+
+            - secretRef:
+                name: fcg-users-secret
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

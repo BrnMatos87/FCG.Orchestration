@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fcg-catalog-worker
+  namespace: fcg
+  labels:
+    app: fcg-catalog-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fcg-catalog-worker
+  template:
+    metadata:
+      labels:
+        app: fcg-catalog-worker
+    spec:
+      initContainers:
+        - name: wait-for-infrastructure
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z catalog-sqlserver 1433; do
+                echo "Aguardando SQL Server..."
+                sleep 5
+              done
+              until nc -z rabbitmq 5672; do
+                echo "Aguardando RabbitMQ..."
+                sleep 5
+              done
+      containers:
+        - name: fcg-catalog-worker
+          image: brnmatos/fcg-catalog-worker:1.0.1
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: fcg-catalog-config
+            - secretRef:
+                name: fcg-catalog-secret
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

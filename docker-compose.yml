@@ -1,0 +1,350 @@
+name: fcg-orchestration
+
+services:
+
+  # =========================================================
+  # RABBITMQ COMPARTILHADO
+  # =========================================================
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: fcg-rabbitmq
+    restart: unless-stopped
+
+    environment:
+      RABBITMQ_DEFAULT_USER: "rabbitmquser"
+      RABBITMQ_DEFAULT_PASS: "rbmq2587!@"
+
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "rabbitmq-diagnostics",
+          "-q",
+          "ping"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+    networks:
+      - fcg-network
+
+
+  # =========================================================
+  # USERS
+  # =========================================================
+
+  users-sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: fcg-users-sqlserver
+    restart: unless-stopped
+
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "senha123@#4l"
+
+    ports:
+      - "1435:1433"
+
+    volumes:
+      - users_sqlserver_data:/var/opt/mssql
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'senha123@#4l' -C -Q 'SELECT 1' || exit 1"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+
+    networks:
+      - fcg-network
+
+
+  users-api:
+    image: brnmatos/fcg-users-api:1.0.1
+    container_name: fcg-users-api
+    restart: on-failure
+
+    ports:
+      - "5001:8080"
+
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Development"
+      ASPNETCORE_URLS: "http://+:8080"
+
+      ConnectionStrings__DefaultConnection: "Server=users-sqlserver,1433;Database=FCGUsersDb;User Id=sa;Password=senha123@#4l;TrustServerCertificate=True;Encrypt=False"
+
+      Jwt__SecretKey: "Q8m5L2b0V0xSgFJq9nR4pY7eTcW1uNzKk3XhM8aPvL2YzR5fGb1nC9wE6sDtQ7uH"
+      Jwt__Issuer: "FCG.Users.Api"
+      Jwt__Audience: "FCG.CloudGames"
+      Jwt__ExpirationMinutes: "60"
+
+      RabbitMq__Host: "rabbitmq"
+      RabbitMq__Port: "5672"
+      RabbitMq__VirtualHost: "/"
+      RabbitMq__Username: "rabbitmquser"
+      RabbitMq__Password: "rbmq2587!@"
+
+    depends_on:
+      users-sqlserver:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+    networks:
+      - fcg-network
+
+
+  # =========================================================
+  # CATALOG
+  # =========================================================
+
+  catalog-sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: fcg-catalog-sqlserver
+    restart: unless-stopped
+
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "senha123@#4l"
+
+    ports:
+      - "1436:1433"
+
+    volumes:
+      - catalog_sqlserver_data:/var/opt/mssql
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'senha123@#4l' -C -Q 'SELECT 1' || exit 1"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+
+    networks:
+      - fcg-network
+
+
+  catalog-api:
+    image: brnmatos/fcg-catalog-api:1.0.1
+    container_name: fcg-catalog-api
+    restart: on-failure
+
+    ports:
+      - "5002:8080"
+
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Development"
+      ASPNETCORE_URLS: "http://+:8080"
+
+      ConnectionStrings__DefaultConnection: "Server=catalog-sqlserver,1433;Database=FCGCatalogDb;User Id=sa;Password=senha123@#4l;TrustServerCertificate=True;Encrypt=False"
+
+      Jwt__SecretKey: "Q8m5L2b0V0xSgFJq9nR4pY7eTcW1uNzKk3XhM8aPvL2YzR5fGb1nC9wE6sDtQ7uH"
+      Jwt__Issuer: "FCG.Users.Api"
+      Jwt__Audience: "FCG.CloudGames"
+      Jwt__ExpirationMinutes: "60"
+
+      RabbitMq__Host: "rabbitmq"
+      RabbitMq__Port: "5672"
+      RabbitMq__VirtualHost: "/"
+      RabbitMq__Username: "rabbitmquser"
+      RabbitMq__Password: "rbmq2587!@"
+
+    depends_on:
+      catalog-sqlserver:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+    networks:
+      - fcg-network
+
+
+  catalog-worker:
+    image: brnmatos/fcg-catalog-worker:1.0.1
+    container_name: fcg-catalog-worker
+    restart: on-failure
+
+    environment:
+      DOTNET_ENVIRONMENT: "Development"
+
+      ConnectionStrings__DefaultConnection: "Server=catalog-sqlserver,1433;Database=FCGCatalogDb;User Id=sa;Password=senha123@#4l;TrustServerCertificate=True;Encrypt=False"
+
+      RabbitMq__Host: "rabbitmq"
+      RabbitMq__Port: "5672"
+      RabbitMq__VirtualHost: "/"
+      RabbitMq__Username: "rabbitmquser"
+      RabbitMq__Password: "rbmq2587!@"
+      RabbitMq__PaymentProcessedQueue: "catalog-payment-processed"
+
+    depends_on:
+      catalog-sqlserver:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+    networks:
+      - fcg-network
+
+
+  # =========================================================
+  # PAYMENTS
+  # =========================================================
+
+  payments-sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: fcg-payments-sqlserver
+    restart: unless-stopped
+
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "senha123@#4l"
+
+    ports:
+      - "1437:1433"
+
+    volumes:
+      - payments_sqlserver_data:/var/opt/mssql
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'senha123@#4l' -C -Q 'SELECT 1' || exit 1"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+
+    networks:
+      - fcg-network
+
+
+  payments-api:
+    image: brnmatos/fcg-payments-api:1.0.1
+    container_name: fcg-payments-api
+    restart: on-failure
+
+    ports:
+      - "5003:8080"
+
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Development"
+      ASPNETCORE_URLS: "http://+:8080"
+
+      ConnectionStrings__DefaultConnection: "Server=payments-sqlserver,1433;Database=FCGPaymentsDb;User Id=sa;Password=senha123@#4l;TrustServerCertificate=True;Encrypt=False"
+
+      Jwt__SecretKey: "Q8m5L2b0V0xSgFJq9nR4pY7eTcW1uNzKk3XhM8aPvL2YzR5fGb1nC9wE6sDtQ7uH"
+      Jwt__Issuer: "FCG.Users.Api"
+      Jwt__Audience: "FCG.CloudGames"
+      Jwt__ExpirationMinutes: "60"
+
+      RabbitMq__Host: "rabbitmq"
+      RabbitMq__Port: "5672"
+      RabbitMq__VirtualHost: "/"
+      RabbitMq__Username: "rabbitmquser"
+      RabbitMq__Password: "rbmq2587!@"
+
+    depends_on:
+      payments-sqlserver:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+    networks:
+      - fcg-network
+
+
+  payments-worker:
+    image: brnmatos/fcg-payments-worker:1.0.1
+    container_name: fcg-payments-worker
+    restart: on-failure
+
+    environment:
+      DOTNET_ENVIRONMENT: "Development"
+
+      ConnectionStrings__DefaultConnection: "Server=payments-sqlserver,1433;Database=FCGPaymentsDb;User Id=sa;Password=senha123@#4l;TrustServerCertificate=True;Encrypt=False"
+
+      RabbitMq__Host: "rabbitmq"
+      RabbitMq__Port: "5672"
+      RabbitMq__VirtualHost: "/"
+      RabbitMq__Username: "rabbitmquser"
+      RabbitMq__Password: "rbmq2587!@"
+      RabbitMq__OrderPlacedQueue: "payments-order-placed"
+
+    depends_on:
+      payments-sqlserver:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+    networks:
+      - fcg-network
+
+
+  # =========================================================
+  # NOTIFICATIONS
+  # =========================================================
+
+  notifications-worker:
+    image: brnmatos/fcg-notifications-worker:1.0.0
+    container_name: fcg-notifications-worker
+    restart: on-failure
+
+    environment:
+      DOTNET_ENVIRONMENT: "Development"
+
+      RabbitMq__Host: "rabbitmq"
+      RabbitMq__Port: "5672"
+      RabbitMq__VirtualHost: "/"
+      RabbitMq__Username: "rabbitmquser"
+      RabbitMq__Password: "rbmq2587!@"
+      RabbitMq__UserCreatedQueue: "notifications-user-created"
+      RabbitMq__PaymentProcessedQueue: "notifications-payment-processed"
+
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+    networks:
+      - fcg-network
+
+
+# ===========================================================
+# VOLUMES
+# ===========================================================
+
+volumes:
+  users_sqlserver_data:
+    name: fcg_users_sqlserver_data
+
+  catalog_sqlserver_data:
+    name: fcg_catalog_sqlserver_data
+
+  payments_sqlserver_data:
+    name: fcg_payments_sqlserver_data
+
+
+# ===========================================================
+# REDE
+# ===========================================================
+
+networks:
+  fcg-network:
+    name: fcg-network
+    driver: bridge
