@@ -81,9 +81,9 @@ Ao executar o Docker Compose serão iniciados:
 
 | Serviço | Porta |
 |----------|------|
-| Users API | 5001 |
-| Catalog API | 5002 |
-| Payments API | 5003 |
+| Users API | 5101 |
+| Catalog API | 5102 |
+| Payments API | 5103 |
 | RabbitMQ | 5672 |
 | RabbitMQ Management | 15672 |
 | Users SQL Server | 1435 |
@@ -167,19 +167,19 @@ docker compose logs -f notifications-worker
 ## Users
 
 ```
-http://localhost:5001/swagger
+http://localhost:5101/swagger
 ```
 
 ## Catalog
 
 ```
-http://localhost:5002/swagger
+http://localhost:5102/swagger
 ```
 
 ## Payments
 
 ```
-http://localhost:5003/swagger
+http://localhost:5103/swagger
 ```
 
 ---

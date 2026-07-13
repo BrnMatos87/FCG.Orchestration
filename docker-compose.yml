@@ -76,7 +76,7 @@ services:
     restart: on-failure
 
     ports:
-      - "5001:8080"
+      - "5101:8080"
 
     environment:
       ASPNETCORE_ENVIRONMENT: "Development"
@@ -145,7 +145,7 @@ services:
     restart: on-failure
 
     ports:
-      - "5002:8080"
+      - "5102:8080"
 
     environment:
       ASPNETCORE_ENVIRONMENT: "Development"
@@ -241,7 +241,7 @@ services:
     restart: on-failure
 
     ports:
-      - "5003:8080"
+      - "5103:8080"
 
     environment:
       ASPNETCORE_ENVIRONMENT: "Development"
