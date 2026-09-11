@@ -1,0 +1,98 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kong
+  namespace: fcg
+  labels:
+    app: kong
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kong
+  template:
+    metadata:
+      labels:
+        app: kong
+    spec:
+      initContainers:
+        - name: render-kong-config
+          image: busybox:1.36
+          command:
+            - sh
+            - /kong/template/render-config.sh
+          env:
+            - name: FCG_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: fcg-shared-secret
+                  key: Jwt__SecretKey
+          volumeMounts:
+            - name: kong-config-template
+              mountPath: /kong/template
+              readOnly: true
+            - name: kong-config
+              mountPath: /kong/declarative
+      containers:
+        - name: kong
+          image: kong:3.9
+          ports:
+            - name: proxy
+              containerPort: 8000
+            - name: status
+              containerPort: 8100
+          env:
+            - name: KONG_DATABASE
+              value: "off"
+            - name: KONG_DECLARATIVE_CONFIG
+              value: /kong/declarative/kong.yml
+            - name: KONG_PROXY_LISTEN
+              value: 0.0.0.0:8000
+            - name: KONG_ADMIN_LISTEN
+              value: "off"
+            - name: KONG_STATUS_LISTEN
+              value: 0.0.0.0:8100
+          readinessProbe:
+            httpGet:
+              path: /status/ready
+              port: status
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /status
+              port: status
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          volumeMounts:
+            - name: kong-config
+              mountPath: /kong/declarative
+              readOnly: true
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "512Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+      volumes:
+        - name: kong-config-template
+          configMap:
+            name: kong-declarative-config
+        - name: kong-config
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kong-proxy
+  namespace: fcg
+spec:
+  type: LoadBalancer
+  selector:
+    app: kong
+  ports:
+    - name: http
+      port: 80
+      targetPort: proxy

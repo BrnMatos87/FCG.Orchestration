@@ -1,0 +1,369 @@
+{
+  "info": {
+    "_postman_id": "57d64430-540c-4df9-8527-d84d79320387",
+    "name": "FCG - Tech Challenge Fase 3",
+    "description": "Collection para apresentação. Todos os endpoints externos usam o Kong via {{kongBaseUrl}}. Há tokens separados para Administrator e User, aplicados conforme a autorização de cada endpoint. Os fluxos de cadastro e compra acionam internamente a Azure Function de Notifications.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      { "key": "value", "value": "Bearer {{adminJwtToken}}", "type": "string" },
+      { "key": "key", "value": "Authorization", "type": "string" },
+      { "key": "in", "value": "header", "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "kongBaseUrl", "value": "http://localhost:8000", "type": "string" },
+    { "key": "adminJwtToken", "value": "", "type": "string" },
+    { "key": "userJwtToken", "value": "", "type": "string" },
+    { "key": "adminEmail", "value": "admin@fcg.com", "type": "string" },
+    { "key": "adminPassword", "value": "Admin@123", "type": "string" },
+    { "key": "registeredUserEmail", "value": "", "type": "string" },
+    { "key": "managedUserEmail", "value": "", "type": "string" },
+    { "key": "testUserPassword", "value": "User@12345", "type": "string" },
+    { "key": "userId", "value": "00000000-0000-0000-0000-000000000001", "type": "string" },
+    { "key": "managedUserId", "value": "00000000-0000-0000-0000-000000000004", "type": "string" },
+    { "key": "gameId", "value": "00000000-0000-0000-0000-000000000002", "type": "string" },
+    { "key": "orderId", "value": "00000000-0000-0000-0000-000000000003", "type": "string" },
+    { "key": "gameTitle", "value": "FCG Presentation Game", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "01 - Autenticação e fluxo público",
+      "item": [
+        {
+          "name": "Login - Administrador",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('Login realizado', () => pm.response.to.have.status(200));",
+                "const body = pm.response.json();",
+                "const token = String(body.token || body.Token || '').replace(/^Bearer\\s+/i, '').trim();",
+                "pm.expect(token).to.be.a('string').and.not.empty;",
+                "pm.expect(token.split('.')).to.have.lengthOf(3);",
+                "pm.collectionVariables.set('adminJwtToken', token);",
+                "pm.environment.set('adminJwtToken', token);",
+                "console.log('adminJwtToken salvo; segmentos:', token.split('.').length);"
+              ]
+            }
+          }],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{kongBaseUrl}}/api/v1/auth/login"
+          }
+        },
+        {
+          "name": "Registrar usuário - Público",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": { "type": "text/javascript", "exec": ["const email = `user.${Date.now()}@fcg.test`;", "pm.collectionVariables.set('registeredUserEmail', email);", "pm.environment.set('registeredUserEmail', email);"] }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Usuário registrado', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "if (body.id) { pm.collectionVariables.set('userId', body.id); pm.environment.set('userId', body.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Usuário da apresentação\",\n  \"email\": \"{{registeredUserEmail}}\",\n  \"password\": \"{{testUserPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{kongBaseUrl}}/api/v1/users/register",
+            "description": "Cria um usuário de perfil User pelo Kong e aciona internamente a notificação de boas-vindas."
+          }
+        },
+        {
+          "name": "Login - Usuário normal",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('Login do usuário realizado', () => pm.response.to.have.status(200));",
+                "const body = pm.response.json();",
+                "const token = String(body.token || body.Token || '').replace(/^Bearer\\s+/i, '').trim();",
+                "pm.expect(token).to.be.a('string').and.not.empty;",
+                "pm.expect(token.split('.')).to.have.lengthOf(3);",
+                "pm.collectionVariables.set('userJwtToken', token);",
+                "pm.environment.set('userJwtToken', token);",
+                "console.log('userJwtToken salvo; segmentos:', token.split('.').length);"
+              ]
+            }
+          }],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{registeredUserEmail}}\",\n  \"password\": \"{{testUserPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{kongBaseUrl}}/api/v1/auth/login",
+            "description": "Execute após Registrar usuário. Salva um JWT com perfil User."
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Users",
+      "item": [
+        {
+          "name": "Criar usuário - Administrador",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": { "type": "text/javascript", "exec": ["const email = `managed.${Date.now()}@fcg.test`;", "pm.collectionVariables.set('managedUserEmail', email);", "pm.environment.set('managedUserEmail', email);"] }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Usuário criado', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "if (body.id) { pm.collectionVariables.set('managedUserId', body.id); pm.environment.set('managedUserId', body.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Usuário gerenciado\",\n  \"email\": \"{{managedUserEmail}}\",\n  \"password\": \"{{testUserPassword}}\",\n  \"profile\": 1\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{kongBaseUrl}}/api/v1/users"
+          }
+        },
+        { "name": "Listar usuários", "request": { "method": "GET", "header": [], "url": "{{kongBaseUrl}}/api/v1/users" } },
+        {
+          "name": "Obter usuário por ID - User",
+          "request": {
+            "auth": { "type": "apikey", "apikey": [{ "key": "value", "value": "Bearer {{userJwtToken}}", "type": "string" }, { "key": "key", "value": "Authorization", "type": "string" }, { "key": "in", "value": "header", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": "{{kongBaseUrl}}/api/v1/users/{{userId}}"
+          }
+        },
+        {
+          "name": "Atualizar usuário",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Usuário atualizado\",\n  \"email\": \"{{managedUserEmail}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{kongBaseUrl}}/api/v1/users/{{managedUserId}}"
+          }
+        },
+        {
+          "name": "Alterar senha",
+          "request": {
+            "auth": { "type": "apikey", "apikey": [{ "key": "value", "value": "Bearer {{userJwtToken}}", "type": "string" }, { "key": "key", "value": "Authorization", "type": "string" }, { "key": "in", "value": "header", "type": "string" }] },
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"newPassword\": \"NewUser@12345\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{kongBaseUrl}}/api/v1/users/{{userId}}/password"
+          }
+        },
+        {
+          "name": "Alterar perfil para Administrador",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"profile\": 2\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{kongBaseUrl}}/api/v1/users/{{managedUserId}}/profile"
+          }
+        },
+        { "name": "Ativar usuário", "request": { "method": "PATCH", "header": [], "url": "{{kongBaseUrl}}/api/v1/users/{{managedUserId}}/activate" } },
+        { "name": "Inativar usuário", "request": { "method": "PATCH", "header": [], "url": "{{kongBaseUrl}}/api/v1/users/{{managedUserId}}/inactivate" } }
+      ]
+    },
+    {
+      "name": "03 - Catalog - Games",
+      "item": [
+        {
+          "name": "Criar jogo",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": { "type": "text/javascript", "exec": ["pm.collectionVariables.set('gameTitle', `FCG Presentation Game ${Date.now()}`);"] }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Jogo criado', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "if (body.id) { pm.collectionVariables.set('gameId', body.id); pm.environment.set('gameId', body.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"{{gameTitle}}\",\n  \"description\": \"Jogo criado na apresentação da Fase 3\",\n  \"price\": 99.90,\n  \"category\": \"Action\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{kongBaseUrl}}/api/games"
+          }
+        },
+        {
+          "name": "Listar catálogo disponível - User",
+          "request": {
+            "auth": { "type": "apikey", "apikey": [{ "key": "value", "value": "Bearer {{userJwtToken}}", "type": "string" }, { "key": "key", "value": "Authorization", "type": "string" }, { "key": "in", "value": "header", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": "{{kongBaseUrl}}/api/games"
+          }
+        },
+        {
+          "name": "Obter jogo do catálogo por ID - User",
+          "request": {
+            "auth": { "type": "apikey", "apikey": [{ "key": "value", "value": "Bearer {{userJwtToken}}", "type": "string" }, { "key": "key", "value": "Authorization", "type": "string" }, { "key": "in", "value": "header", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": "{{kongBaseUrl}}/api/games/{{gameId}}"
+          }
+        },
+        {
+          "name": "Atualizar jogo",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"{{gameTitle}} - Atualizado\",\n  \"description\": \"Descrição atualizada pelo Kong\",\n  \"price\": 89.90,\n  \"category\": \"Action\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{kongBaseUrl}}/api/games/{{gameId}}"
+          }
+        },
+        { "name": "Ativar jogo", "request": { "method": "PATCH", "header": [], "url": "{{kongBaseUrl}}/api/games/{{gameId}}/activate" } },
+        { "name": "Inativar jogo", "request": { "method": "PATCH", "header": [], "url": "{{kongBaseUrl}}/api/games/{{gameId}}/inactivate" } }
+      ]
+    },
+    {
+      "name": "04 - Catalog - Reviews",
+      "item": [
+        {
+          "name": "Criar avaliação",
+          "request": {
+            "auth": { "type": "apikey", "apikey": [{ "key": "value", "value": "Bearer {{userJwtToken}}", "type": "string" }, { "key": "key", "value": "Authorization", "type": "string" }, { "key": "in", "value": "header", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"rating\": 5,\n  \"comment\": \"Excelente demonstração da Fase 3.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{kongBaseUrl}}/api/v1/games/{{gameId}}/reviews"
+          }
+        },
+        {
+          "name": "Listar avaliações - User",
+          "request": {
+            "auth": { "type": "apikey", "apikey": [{ "key": "value", "value": "Bearer {{userJwtToken}}", "type": "string" }, { "key": "key", "value": "Authorization", "type": "string" }, { "key": "in", "value": "header", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": "{{kongBaseUrl}}/api/v1/games/{{gameId}}/reviews"
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Purchases",
+      "description": "A compra entra pelo Kong, publica no RabbitMQ e é processada assincronamente. O Payments Worker chama Notifications por HTTP.",
+      "item": [
+        {
+          "name": "Criar compra",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('Compra aceita', () => pm.response.to.have.status(202));",
+                "const body = pm.response.json();",
+                "if (body.orderId) { pm.collectionVariables.set('orderId', body.orderId); pm.environment.set('orderId', body.orderId); }"
+              ]
+            }
+          }],
+          "request": {
+            "auth": { "type": "apikey", "apikey": [{ "key": "value", "value": "Bearer {{userJwtToken}}", "type": "string" }, { "key": "key", "value": "Authorization", "type": "string" }, { "key": "in", "value": "header", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"gameId\": \"{{gameId}}\",\n  \"userEmail\": \"{{registeredUserEmail}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{kongBaseUrl}}/api/purchases"
+          }
+        },
+        {
+          "name": "Listar jogos adquiridos - Somente aprovados",
+          "request": {
+            "auth": { "type": "apikey", "apikey": [{ "key": "value", "value": "Bearer {{userJwtToken}}", "type": "string" }, { "key": "key", "value": "Authorization", "type": "string" }, { "key": "in", "value": "header", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": "{{kongBaseUrl}}/api/purchases/users/{{userId}}/library",
+            "description": "Biblioteca do usuário. Retorna somente compras com PurchaseStatus Approved. Aguarde o processamento assíncrono após criar a compra."
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 - Payments",
+      "item": [
+        {
+          "name": "Consultar pagamento por Order ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{kongBaseUrl}}/api/payments/orders/{{orderId}}",
+            "description": "Requer administrador. Aguarde o Payments Worker processar a compra."
+          }
+        }
+      ]
+    }
+  ]
+}

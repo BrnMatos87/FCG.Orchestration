@@ -17,3 +17,5 @@ data:
   RabbitMq__Port: "5672"
   RabbitMq__VirtualHost: "/"
   RabbitMq__OrderPlacedQueue: "payments-order-placed"
+
+  Notifications__BaseUrl: "https://fcg-notifications-dev-001.azurewebsites.net"

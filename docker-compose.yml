@@ -1,348 +1,329 @@
 name: fcg-orchestration
 
 services:
-
-  # =========================================================
-  # RABBITMQ COMPARTILHADO
-  # =========================================================
-
   rabbitmq:
-    image: rabbitmq:3-management
+    image: rabbitmq:3.13-management
     container_name: fcg-rabbitmq
     restart: unless-stopped
-
     environment:
-      RABBITMQ_DEFAULT_USER: "rabbitmquser"
-      RABBITMQ_DEFAULT_PASS: "rbmq2587!@"
-
+      RABBITMQ_DEFAULT_USER: "${RABBITMQ_USERNAME:?Configure RABBITMQ_USERNAME no arquivo .env}"
+      RABBITMQ_DEFAULT_PASS: "${RABBITMQ_PASSWORD:?Configure RABBITMQ_PASSWORD no arquivo .env}"
     ports:
-      - "5672:5672"
-      - "15672:15672"
-
+      - "127.0.0.1:15672:15672"
+    expose: ["5672"]
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
-      test:
-        [
-          "CMD",
-          "rabbitmq-diagnostics",
-          "-q",
-          "ping"
-        ]
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 20s
-
-    networks:
-      - fcg-network
-
-
-  # =========================================================
-  # USERS
-  # =========================================================
+    networks: [fcg-network]
 
   users-sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: fcg-users-sqlserver
     restart: unless-stopped
-
     environment:
       ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: "senha123@#4l"
-
+      MSSQL_SA_PASSWORD: "${USERS_SQL_PASSWORD:?Configure USERS_SQL_PASSWORD no arquivo .env}"
     ports:
-      - "1435:1433"
-
+      - "127.0.0.1:1435:1433"
     volumes:
       - users_sqlserver_data:/var/opt/mssql
-
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'senha123@#4l' -C -Q 'SELECT 1' || exit 1"
-        ]
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P '$${MSSQL_SA_PASSWORD}' -C -Q 'SELECT 1' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 15
       start_period: 30s
-
-    networks:
-      - fcg-network
-
+    networks: [fcg-network]
 
   users-api:
-    image: brnmatos/fcg-users-api:1.0.1
+    image: brnmatos/fcg-users-api:1.0.2
     container_name: fcg-users-api
     restart: on-failure
-
-    ports:
-      - "5101:8080"
-
+    expose: ["8080"]
     environment:
       ASPNETCORE_ENVIRONMENT: "Development"
       ASPNETCORE_URLS: "http://+:8080"
-
-      ConnectionStrings__DefaultConnection: "Server=users-sqlserver,1433;Database=FCGUsersDb;User Id=sa;Password=senha123@#4l;TrustServerCertificate=True;Encrypt=False"
-
-      Jwt__SecretKey: "Q8m5L2b0V0xSgFJq9nR4pY7eTcW1uNzKk3XhM8aPvL2YzR5fGb1nC9wE6sDtQ7uH"
+      ConnectionStrings__DefaultConnection: "Server=users-sqlserver,1433;Database=FCGUsersDb;User Id=sa;Password=${USERS_SQL_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      Jwt__SecretKey: "${JWT_SECRET:?Configure JWT_SECRET no arquivo .env}"
       Jwt__Issuer: "FCG.Users.Api"
       Jwt__Audience: "FCG.CloudGames"
       Jwt__ExpirationMinutes: "60"
-
-      RabbitMq__Host: "rabbitmq"
-      RabbitMq__Port: "5672"
-      RabbitMq__VirtualHost: "/"
-      RabbitMq__Username: "rabbitmquser"
-      RabbitMq__Password: "rbmq2587!@"
-
+      Notifications__BaseUrl: "${NOTIFICATIONS_BASE_URL:?Configure NOTIFICATIONS_BASE_URL no arquivo .env}"
+      Notifications__FunctionKey: "${NOTIFICATIONS_FUNCTION_KEY:-}"
     depends_on:
       users-sqlserver:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-
-    networks:
-      - fcg-network
-
-
-  # =========================================================
-  # CATALOG
-  # =========================================================
+    networks: [fcg-network]
 
   catalog-sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: fcg-catalog-sqlserver
     restart: unless-stopped
-
     environment:
       ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: "senha123@#4l"
-
+      MSSQL_SA_PASSWORD: "${CATALOG_SQL_PASSWORD:?Configure CATALOG_SQL_PASSWORD no arquivo .env}"
     ports:
-      - "1436:1433"
-
+      - "127.0.0.1:1436:1433"
     volumes:
       - catalog_sqlserver_data:/var/opt/mssql
-
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'senha123@#4l' -C -Q 'SELECT 1' || exit 1"
-        ]
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P '$${MSSQL_SA_PASSWORD}' -C -Q 'SELECT 1' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 15
       start_period: 30s
+    networks: [fcg-network]
 
-    networks:
-      - fcg-network
+  mongodb:
+    image: mongo:7.0
+    container_name: fcg-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: "${MONGODB_ROOT_USERNAME:?Configure MONGODB_ROOT_USERNAME no arquivo .env}"
+      MONGO_INITDB_ROOT_PASSWORD: "${MONGODB_ROOT_PASSWORD:?Configure MONGODB_ROOT_PASSWORD no arquivo .env}"
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --username '$${MONGO_INITDB_ROOT_USERNAME}' --password '$${MONGO_INITDB_ROOT_PASSWORD}' --authenticationDatabase admin --eval 'quit(db.runCommand({ ping: 1 }).ok ? 0 : 2)' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks: [fcg-network]
 
+  redis:
+    image: redis:7.2-alpine
+    container_name: fcg-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?Configure REDIS_PASSWORD no arquivo .env}"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    environment:
+      REDIS_PASSWORD: "${REDIS_PASSWORD:?Configure REDIS_PASSWORD no arquivo .env}"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a '$${REDIS_PASSWORD}' ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [fcg-network]
 
   catalog-api:
-    image: brnmatos/fcg-catalog-api:1.0.1
+    image: brnmatos/fcg-catalog-api:1.0.4
     container_name: fcg-catalog-api
     restart: on-failure
-
-    ports:
-      - "5102:8080"
-
+    expose: ["8080"]
     environment:
       ASPNETCORE_ENVIRONMENT: "Development"
       ASPNETCORE_URLS: "http://+:8080"
-
-      ConnectionStrings__DefaultConnection: "Server=catalog-sqlserver,1433;Database=FCGCatalogDb;User Id=sa;Password=senha123@#4l;TrustServerCertificate=True;Encrypt=False"
-
-      Jwt__SecretKey: "Q8m5L2b0V0xSgFJq9nR4pY7eTcW1uNzKk3XhM8aPvL2YzR5fGb1nC9wE6sDtQ7uH"
+      ConnectionStrings__DefaultConnection: "Server=catalog-sqlserver,1433;Database=FCGCatalogDb;User Id=sa;Password=${CATALOG_SQL_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      ConnectionStrings__Redis: "redis:6379"
+      Redis__Password: "${REDIS_PASSWORD:?Configure REDIS_PASSWORD no arquivo .env}"
+      MongoDb__ConnectionString: "mongodb://${MONGODB_ROOT_USERNAME}:${MONGODB_ROOT_PASSWORD}@mongodb:27017/?authSource=admin"
+      MongoDb__DatabaseName: "FCGCatalogReviewsDb"
+      MongoDb__ReviewsCollectionName: "reviews"
+      Jwt__SecretKey: "${JWT_SECRET:?Configure JWT_SECRET no arquivo .env}"
       Jwt__Issuer: "FCG.Users.Api"
       Jwt__Audience: "FCG.CloudGames"
       Jwt__ExpirationMinutes: "60"
-
       RabbitMq__Host: "rabbitmq"
       RabbitMq__Port: "5672"
       RabbitMq__VirtualHost: "/"
-      RabbitMq__Username: "rabbitmquser"
-      RabbitMq__Password: "rbmq2587!@"
-
+      RabbitMq__Username: "${RABBITMQ_USERNAME}"
+      RabbitMq__Password: "${RABBITMQ_PASSWORD}"
     depends_on:
       catalog-sqlserver:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-
-    networks:
-      - fcg-network
-
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [fcg-network]
 
   catalog-worker:
-    image: brnmatos/fcg-catalog-worker:1.0.1
+    image: brnmatos/fcg-catalog-worker:1.0.2
     container_name: fcg-catalog-worker
     restart: on-failure
-
     environment:
       DOTNET_ENVIRONMENT: "Development"
-
-      ConnectionStrings__DefaultConnection: "Server=catalog-sqlserver,1433;Database=FCGCatalogDb;User Id=sa;Password=senha123@#4l;TrustServerCertificate=True;Encrypt=False"
-
+      ConnectionStrings__DefaultConnection: "Server=catalog-sqlserver,1433;Database=FCGCatalogDb;User Id=sa;Password=${CATALOG_SQL_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       RabbitMq__Host: "rabbitmq"
       RabbitMq__Port: "5672"
       RabbitMq__VirtualHost: "/"
-      RabbitMq__Username: "rabbitmquser"
-      RabbitMq__Password: "rbmq2587!@"
+      RabbitMq__Username: "${RABBITMQ_USERNAME}"
+      RabbitMq__Password: "${RABBITMQ_PASSWORD}"
       RabbitMq__PaymentProcessedQueue: "catalog-payment-processed"
-
     depends_on:
       catalog-sqlserver:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-
-    networks:
-      - fcg-network
-
-
-  # =========================================================
-  # PAYMENTS
-  # =========================================================
+    networks: [fcg-network]
 
   payments-sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: fcg-payments-sqlserver
     restart: unless-stopped
-
     environment:
       ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: "senha123@#4l"
-
+      MSSQL_SA_PASSWORD: "${PAYMENTS_SQL_PASSWORD:?Configure PAYMENTS_SQL_PASSWORD no arquivo .env}"
     ports:
-      - "1437:1433"
-
+      - "127.0.0.1:1437:1433"
     volumes:
       - payments_sqlserver_data:/var/opt/mssql
-
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'senha123@#4l' -C -Q 'SELECT 1' || exit 1"
-        ]
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P '$${MSSQL_SA_PASSWORD}' -C -Q 'SELECT 1' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 15
       start_period: 30s
-
-    networks:
-      - fcg-network
-
+    networks: [fcg-network]
 
   payments-api:
-    image: brnmatos/fcg-payments-api:1.0.1
+    image: brnmatos/fcg-payments-api:1.0.2
     container_name: fcg-payments-api
     restart: on-failure
-
-    ports:
-      - "5103:8080"
-
+    expose: ["8080"]
     environment:
       ASPNETCORE_ENVIRONMENT: "Development"
       ASPNETCORE_URLS: "http://+:8080"
-
-      ConnectionStrings__DefaultConnection: "Server=payments-sqlserver,1433;Database=FCGPaymentsDb;User Id=sa;Password=senha123@#4l;TrustServerCertificate=True;Encrypt=False"
-
-      Jwt__SecretKey: "Q8m5L2b0V0xSgFJq9nR4pY7eTcW1uNzKk3XhM8aPvL2YzR5fGb1nC9wE6sDtQ7uH"
+      ConnectionStrings__DefaultConnection: "Server=payments-sqlserver,1433;Database=FCGPaymentsDb;User Id=sa;Password=${PAYMENTS_SQL_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      Jwt__SecretKey: "${JWT_SECRET:?Configure JWT_SECRET no arquivo .env}"
       Jwt__Issuer: "FCG.Users.Api"
       Jwt__Audience: "FCG.CloudGames"
       Jwt__ExpirationMinutes: "60"
-
       RabbitMq__Host: "rabbitmq"
       RabbitMq__Port: "5672"
       RabbitMq__VirtualHost: "/"
-      RabbitMq__Username: "rabbitmquser"
-      RabbitMq__Password: "rbmq2587!@"
-
+      RabbitMq__Username: "${RABBITMQ_USERNAME}"
+      RabbitMq__Password: "${RABBITMQ_PASSWORD}"
+      Notifications__BaseUrl: "${NOTIFICATIONS_BASE_URL:?Configure NOTIFICATIONS_BASE_URL no arquivo .env}"
+      Notifications__FunctionKey: "${NOTIFICATIONS_FUNCTION_KEY:-}"
     depends_on:
       payments-sqlserver:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-
-    networks:
-      - fcg-network
-
+    networks: [fcg-network]
 
   payments-worker:
-    image: brnmatos/fcg-payments-worker:1.0.1
+    image: brnmatos/fcg-payments-worker:1.0.2
     container_name: fcg-payments-worker
     restart: on-failure
-
     environment:
       DOTNET_ENVIRONMENT: "Development"
-
-      ConnectionStrings__DefaultConnection: "Server=payments-sqlserver,1433;Database=FCGPaymentsDb;User Id=sa;Password=senha123@#4l;TrustServerCertificate=True;Encrypt=False"
-
+      ConnectionStrings__DefaultConnection: "Server=payments-sqlserver,1433;Database=FCGPaymentsDb;User Id=sa;Password=${PAYMENTS_SQL_PASSWORD};TrustServerCertificate=True;Encrypt=False"
       RabbitMq__Host: "rabbitmq"
       RabbitMq__Port: "5672"
       RabbitMq__VirtualHost: "/"
-      RabbitMq__Username: "rabbitmquser"
-      RabbitMq__Password: "rbmq2587!@"
+      RabbitMq__Username: "${RABBITMQ_USERNAME}"
+      RabbitMq__Password: "${RABBITMQ_PASSWORD}"
       RabbitMq__OrderPlacedQueue: "payments-order-placed"
-
+      Notifications__BaseUrl: "${NOTIFICATIONS_BASE_URL:?Configure NOTIFICATIONS_BASE_URL no arquivo .env}"
+      Notifications__FunctionKey: "${NOTIFICATIONS_FUNCTION_KEY:-}"
     depends_on:
       payments-sqlserver:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    networks: [fcg-network]
 
-    networks:
-      - fcg-network
-
-
-  # =========================================================
-  # NOTIFICATIONS
-  # =========================================================
-
-  notifications-worker:
-    image: brnmatos/fcg-notifications-worker:1.0.0
-    container_name: fcg-notifications-worker
-    restart: on-failure
-
+  kong:
+    image: kong:3.9
+    container_name: fcg-kong
+    restart: unless-stopped
+    command:
+      - sh
+      - -c
+      - /kong/template/render-config.sh && exec /docker-entrypoint.sh kong docker-start
     environment:
-      DOTNET_ENVIRONMENT: "Development"
-
-      RabbitMq__Host: "rabbitmq"
-      RabbitMq__Port: "5672"
-      RabbitMq__VirtualHost: "/"
-      RabbitMq__Username: "rabbitmquser"
-      RabbitMq__Password: "rbmq2587!@"
-      RabbitMq__UserCreatedQueue: "notifications-user-created"
-      RabbitMq__PaymentProcessedQueue: "notifications-payment-processed"
-
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: "/tmp/kong.yml"
+      KONG_RENDERED_PATH: "/tmp/kong.yml"
+      KONG_PROXY_LISTEN: "0.0.0.0:8000"
+      KONG_ADMIN_LISTEN: "off"
+      KONG_STATUS_LISTEN: "0.0.0.0:8100"
+      KONG_PROXY_ACCESS_LOG: "/dev/stdout"
+      KONG_PROXY_ERROR_LOG: "/dev/stderr"
+      FCG_JWT_SECRET: "${JWT_SECRET:?Configure JWT_SECRET no arquivo .env}"
+    ports:
+      - "8000:8000"
+    expose: ["8100"]
+    volumes:
+      - ./kong:/kong/template:ro
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
     depends_on:
-      rabbitmq:
-        condition: service_healthy
+      users-api:
+        condition: service_started
+      catalog-api:
+        condition: service_started
+      payments-api:
+        condition: service_started
+    networks: [fcg-network]
 
-    networks:
-      - fcg-network
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    container_name: fcg-prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      users-api:
+        condition: service_started
+      catalog-api:
+        condition: service_started
+    networks: [fcg-network]
 
-
-# ===========================================================
-# VOLUMES
-# ===========================================================
+  grafana:
+    image: grafana/grafana:12.1.1
+    container_name: fcg-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: "${GRAFANA_ADMIN_USER:-admin}"
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:?Configure GRAFANA_ADMIN_PASSWORD no arquivo .env}"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      prometheus:
+        condition: service_started
+    networks: [fcg-network]
 
 volumes:
+  rabbitmq_data:
   users_sqlserver_data:
-    name: fcg_users_sqlserver_data
-
   catalog_sqlserver_data:
-    name: fcg_catalog_sqlserver_data
-
   payments_sqlserver_data:
-    name: fcg_payments_sqlserver_data
-
-
-# ===========================================================
-# REDE
-# ===========================================================
+  mongodb_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
 
 networks:
   fcg-network:

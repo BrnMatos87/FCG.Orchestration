@@ -30,9 +30,17 @@ spec:
                 echo "Aguardando RabbitMQ..."
                 sleep 5
               done
+              until nc -z mongodb 27017; do
+                echo "Aguardando MongoDB..."
+                sleep 5
+              done
+              until nc -z redis 6379; do
+                echo "Aguardando Redis..."
+                sleep 5
+              done
       containers:
         - name: fcg-catalog-api
-          image: brnmatos/fcg-catalog-api:1.0.1
+          image: brnmatos/fcg-catalog-api:1.0.4
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -41,8 +49,53 @@ spec:
           envFrom:
             - configMapRef:
                 name: fcg-catalog-config
-            - secretRef:
-                name: fcg-catalog-secret
+          env:
+            - name: ConnectionStrings__DefaultConnection
+              valueFrom:
+                secretKeyRef:
+                  name: fcg-shared-secret
+                  key: Catalog__ConnectionString
+            - name: Jwt__SecretKey
+              valueFrom:
+                secretKeyRef:
+                  name: fcg-shared-secret
+                  key: Jwt__SecretKey
+            - name: RabbitMq__Username
+              valueFrom:
+                secretKeyRef:
+                  name: fcg-shared-secret
+                  key: RabbitMq__Username
+            - name: RabbitMq__Password
+              valueFrom:
+                secretKeyRef:
+                  name: fcg-shared-secret
+                  key: RabbitMq__Password
+            - name: Redis__Password
+              valueFrom:
+                secretKeyRef:
+                  name: fcg-shared-secret
+                  key: Redis__Password
+            - name: MongoDb__ConnectionString
+              valueFrom:
+                secretKeyRef:
+                  name: fcg-shared-secret
+                  key: MongoDb__ConnectionString
+
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
           resources:
             requests:
               cpu: "100m"
