@@ -6,15 +6,70 @@ O repositório orquestra Users, Catalog e Payments, seus workers e dependências
 
 ## Arquitetura
 
-```text
-Cliente -> Kong -> Users API -------> Azure Function Notifications
-              |-> Catalog API -> RabbitMQ -> Payments Worker
-              |                              |-> Azure Function Notifications
-              |                <- RabbitMQ <-|
-              |-> Payments API
+```mermaid
+flowchart TB
+    client([Cliente]) --> kong["Kong<br/>API Gateway + JWT"]
 
-Prometheus -> /metrics de Users e Catalog -> Grafana
-Catalog API -> SQL Server + MongoDB + Redis
+    subgraph services[Microsserviços]
+        users[Users API]
+        catalog[Catalog API]
+        payments[Payments API]
+        paymentsWorker[Payments Worker]
+        catalogWorker[Catalog Worker]
+    end
+
+    kong --> users
+    kong --> catalog
+    kong --> payments
+
+    subgraph data[Persistência e cache]
+        usersDb[(Users SQL Server)]
+        catalogDb[(Catalog SQL Server)]
+        paymentsDb[(Payments SQL Server)]
+        mongo[(MongoDB<br/>avaliações)]
+        redis[(Redis<br/>cache)]
+    end
+
+    users --> usersDb
+    catalog --> catalogDb
+    catalog --> mongo
+    catalog --> redis
+    payments --> paymentsDb
+    paymentsWorker --> paymentsDb
+    catalogWorker --> catalogDb
+
+    rabbit{{RabbitMQ}}
+    catalog -->|publica OrderPlaced| rabbit
+    rabbit -->|consome OrderPlaced| paymentsWorker
+    paymentsWorker -->|publica PaymentProcessed| rabbit
+    rabbit -->|consome PaymentProcessed| catalogWorker
+
+    notifications["Azure Functions<br/>FCG.Notifications"]
+    users -.->|HTTP · UserCreated| notifications
+    paymentsWorker -.->|HTTP · PaymentProcessed| notifications
+
+    subgraph observability[Observabilidade]
+        prometheus[Prometheus]
+        grafana[Grafana]
+        grafana -->|consulta métricas| prometheus
+    end
+
+    prometheus -.->|scrape /metrics| users
+    prometheus -.->|scrape /metrics| catalog
+
+    classDef gateway fill:#6f42c1,color:#fff,stroke:#4c2889;
+    classDef service fill:#0969da,color:#fff,stroke:#0550ae;
+    classDef storage fill:#ddf4ff,color:#24292f,stroke:#54aeff;
+    classDef messaging fill:#fff8c5,color:#24292f,stroke:#d4a72c;
+    classDef external fill:#dafbe1,color:#24292f,stroke:#2da44e;
+    classDef observe fill:#ffebe9,color:#24292f,stroke:#cf222e;
+
+    class kong gateway;
+    class users,catalog,payments,paymentsWorker,catalogWorker service;
+    class usersDb,catalogDb,paymentsDb,mongo,redis storage;
+    class rabbit messaging;
+    class notifications external;
+    class prometheus,grafana observe;
 ```
 
 - Kong é o único ponto público das APIs e opera em modo DB-less.
