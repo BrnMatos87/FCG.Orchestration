@@ -261,7 +261,7 @@ O deploy oficial da Function é feito em duas etapas no repositório `FCG.Notifi
 
 ## Imagens dos serviços
 
-- `brnmatos/fcg-users-api:1.0.2`
+- `brnmatos/fcg-users-api:1.0.3`
 - `brnmatos/fcg-catalog-api:1.0.4`
 - `brnmatos/fcg-catalog-worker:1.0.2`
 - `brnmatos/fcg-payments-api:1.0.2`

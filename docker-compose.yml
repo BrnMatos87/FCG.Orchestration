@@ -41,7 +41,7 @@ services:
     networks: [fcg-network]
 
   users-api:
-    image: brnmatos/fcg-users-api:1.0.2
+    image: brnmatos/fcg-users-api:1.0.3
     container_name: fcg-users-api
     restart: on-failure
     expose: ["8080"]
