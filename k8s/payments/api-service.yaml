@@ -6,7 +6,7 @@ metadata:
   labels:
     app: fcg-payments-api
 spec:
-  type: LoadBalancer
+  type: ClusterIP
 
   selector:
     app: fcg-payments-api
@@ -14,5 +14,5 @@ spec:
   ports:
     - name: http
       protocol: TCP
-      port: 5003
+      port: 8080
       targetPort: 8080

@@ -32,3 +32,9 @@ Thumbs.db
 
 **/appsettings.Local.json
 **/appsettings.*.Local.json
+
+# Environment variables and local secrets
+.env
+.env.*
+!.env.example
+k8s/shared-secret.yaml

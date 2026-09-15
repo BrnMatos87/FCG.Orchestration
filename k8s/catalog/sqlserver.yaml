@@ -28,8 +28,21 @@ spec:
             - name: MSSQL_SA_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: fcg-catalog-secret
-                  key: SqlServer__SaPassword
+                  name: fcg-shared-secret
+                  key: Catalog__SqlPassword
+
+          readinessProbe:
+            tcpSocket:
+              port: sql
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 12
+
+          livenessProbe:
+            tcpSocket:
+              port: sql
+            initialDelaySeconds: 60
+            periodSeconds: 20
           volumeMounts:
             - name: catalog-sqlserver-storage
               mountPath: /var/opt/mssql

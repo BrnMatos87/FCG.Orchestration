@@ -37,7 +37,7 @@ spec:
 
       containers:
         - name: fcg-payments-api
-          image: brnmatos/fcg-payments-api:1.0.1
+          image: brnmatos/fcg-payments-api:1.0.2
           imagePullPolicy: IfNotPresent
 
           ports:
@@ -48,9 +48,48 @@ spec:
           envFrom:
             - configMapRef:
                 name: fcg-payments-config
+          env:
+            - name: ConnectionStrings__DefaultConnection
+              valueFrom:
+                secretKeyRef:
+                  name: fcg-shared-secret
+                  key: Payments__ConnectionString
+            - name: Jwt__SecretKey
+              valueFrom:
+                secretKeyRef:
+                  name: fcg-shared-secret
+                  key: Jwt__SecretKey
+            - name: RabbitMq__Username
+              valueFrom:
+                secretKeyRef:
+                  name: fcg-shared-secret
+                  key: RabbitMq__Username
+            - name: RabbitMq__Password
+              valueFrom:
+                secretKeyRef:
+                  name: fcg-shared-secret
+                  key: RabbitMq__Password
+            - name: Notifications__FunctionKey
+              valueFrom:
+                secretKeyRef:
+                  name: fcg-shared-secret
+                  key: Notifications__FunctionKey
 
-            - secretRef:
-                name: fcg-payments-secret
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
 
           resources:
             requests:

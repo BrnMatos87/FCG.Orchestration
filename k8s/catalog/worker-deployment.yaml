@@ -30,15 +30,53 @@ spec:
                 echo "Aguardando RabbitMQ..."
                 sleep 5
               done
+        - name: wait-for-rabbitmq-authentication
+          image: curlimages/curl:8.12.1
+          command:
+            - sh
+            - -c
+            - |
+              until curl --silent --fail \
+                --user "$RABBITMQ_USERNAME:$RABBITMQ_PASSWORD" \
+                http://rabbitmq:15672/api/overview \
+                > /dev/null; do
+                echo "Aguardando RabbitMQ aceitar clientes autenticados..."
+                sleep 5
+              done
+          env:
+            - name: RABBITMQ_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: fcg-shared-secret
+                  key: RabbitMq__Username
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: fcg-shared-secret
+                  key: RabbitMq__Password
       containers:
         - name: fcg-catalog-worker
-          image: brnmatos/fcg-catalog-worker:1.0.1
+          image: brnmatos/fcg-catalog-worker:1.0.2
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:
                 name: fcg-catalog-config
-            - secretRef:
-                name: fcg-catalog-secret
+          env:
+            - name: ConnectionStrings__DefaultConnection
+              valueFrom:
+                secretKeyRef:
+                  name: fcg-shared-secret
+                  key: Catalog__ConnectionString
+            - name: RabbitMq__Username
+              valueFrom:
+                secretKeyRef:
+                  name: fcg-shared-secret
+                  key: RabbitMq__Username
+            - name: RabbitMq__Password
+              valueFrom:
+                secretKeyRef:
+                  name: fcg-shared-secret
+                  key: RabbitMq__Password
           resources:
             requests:
               cpu: "100m"

@@ -11,6 +11,4 @@ data:
   Jwt__Audience: "FCG.CloudGames"
   Jwt__ExpirationMinutes: "180"
 
-  RabbitMq__Host: "rabbitmq"
-  RabbitMq__Port: "5672"
-  RabbitMq__VirtualHost: "/"
+  Notifications__BaseUrl: "https://fcg-notifications-dev-001.azurewebsites.net"

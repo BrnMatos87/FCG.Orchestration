@@ -37,15 +37,33 @@ spec:
 
       containers:
         - name: fcg-payments-worker
-          image: brnmatos/fcg-payments-worker:1.0.1
+          image: brnmatos/fcg-payments-worker:1.0.2
           imagePullPolicy: IfNotPresent
 
           envFrom:
             - configMapRef:
                 name: fcg-payments-config
-
-            - secretRef:
-                name: fcg-payments-secret
+          env:
+            - name: ConnectionStrings__DefaultConnection
+              valueFrom:
+                secretKeyRef:
+                  name: fcg-shared-secret
+                  key: Payments__ConnectionString
+            - name: RabbitMq__Username
+              valueFrom:
+                secretKeyRef:
+                  name: fcg-shared-secret
+                  key: RabbitMq__Username
+            - name: RabbitMq__Password
+              valueFrom:
+                secretKeyRef:
+                  name: fcg-shared-secret
+                  key: RabbitMq__Password
+            - name: Notifications__FunctionKey
+              valueFrom:
+                secretKeyRef:
+                  name: fcg-shared-secret
+                  key: Notifications__FunctionKey
 
           resources:
             requests:

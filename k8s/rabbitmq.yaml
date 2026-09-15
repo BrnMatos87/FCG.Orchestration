@@ -8,6 +8,9 @@ metadata:
 spec:
   replicas: 1
 
+  strategy:
+    type: Recreate
+
   selector:
     matchLabels:
       app: rabbitmq
@@ -33,14 +36,34 @@ spec:
             - name: RABBITMQ_DEFAULT_USER
               valueFrom:
                 secretKeyRef:
-                  name: fcg-users-secret
+                  name: fcg-shared-secret
                   key: RabbitMq__Username
 
             - name: RABBITMQ_DEFAULT_PASS
               valueFrom:
                 secretKeyRef:
-                  name: fcg-users-secret
+                  name: fcg-shared-secret
                   key: RabbitMq__Password
+
+          readinessProbe:
+            tcpSocket:
+              port: amqp
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 10
+
+          livenessProbe:
+            tcpSocket:
+              port: amqp
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 5
+
+          volumeMounts:
+            - name: rabbitmq-storage
+              mountPath: /var/lib/rabbitmq
 
           resources:
             requests:
@@ -49,7 +72,12 @@ spec:
 
             limits:
               cpu: "500m"
-              memory: "512Mi"
+              memory: "1Gi"
+
+      volumes:
+        - name: rabbitmq-storage
+          persistentVolumeClaim:
+            claimName: rabbitmq-pvc
 
 ---
 
@@ -74,3 +102,17 @@ spec:
       protocol: TCP
       port: 15672
       targetPort: 15672
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rabbitmq-pvc
+  namespace: fcg
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi

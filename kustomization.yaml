@@ -1,0 +1,52 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - k8s/namespace.yaml
+  - k8s/shared-secret.yaml
+  - k8s/rabbitmq.yaml
+  - k8s/mongodb.yaml
+  - k8s/redis.yaml
+  - k8s/users/configmap.yaml
+  - k8s/users/sqlserver.yaml
+  - k8s/users/api-deployment.yaml
+  - k8s/users/api-service.yaml
+  - k8s/catalog/configmap.yaml
+  - k8s/catalog/sqlserver.yaml
+  - k8s/catalog/api-deployment.yaml
+  - k8s/catalog/api-service.yaml
+  - k8s/catalog/worker-deployment.yaml
+  - k8s/payments/configmap.yaml
+  - k8s/payments/sqlserver.yaml
+  - k8s/payments/api-deployment.yaml
+  - k8s/payments/api-service.yaml
+  - k8s/payments/worker-deployment.yaml
+  - k8s/kong.yaml
+  - k8s/prometheus.yaml
+  - k8s/grafana.yaml
+
+configMapGenerator:
+  - name: kong-declarative-config
+    namespace: fcg
+    files:
+      - kong.yml=kong/kong.yml
+      - render-config.sh=kong/render-config.sh
+  - name: prometheus-config
+    namespace: fcg
+    files:
+      - prometheus.yml=prometheus/prometheus.yml
+  - name: grafana-datasource
+    namespace: fcg
+    files:
+      - prometheus.yml=grafana/provisioning/datasources/prometheus.yml
+  - name: grafana-dashboard-provider
+    namespace: fcg
+    files:
+      - dashboards.yml=grafana/provisioning/dashboards/dashboards.yml
+  - name: grafana-dashboard
+    namespace: fcg
+    files:
+      - fcg-overview.json=grafana/dashboards/fcg-overview.json
+
+generatorOptions:
+  disableNameSuffixHash: true

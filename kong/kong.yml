@@ -1,0 +1,75 @@
+_format_version: "3.0"
+_transform: true
+
+consumers:
+  - username: fcg-users-issued-tokens
+    jwt_secrets:
+      - key: FCG.Users.Api
+        algorithm: HS256
+        secret: "__FCG_JWT_SECRET_BASE64__"
+
+services:
+  - name: users-service
+    url: http://users-api:8080
+    routes:
+      - name: users-login-public
+        methods: [POST]
+        paths: [/api/v1/auth/login]
+        strip_path: false
+      - name: users-register-public
+        methods: [POST]
+        paths: [/api/v1/users/register]
+        strip_path: false
+      - name: users-protected
+        paths: [/api/v1/users]
+        strip_path: false
+        plugins:
+          - name: jwt
+            config:
+              key_claim_name: iss
+              claims_to_verify: [exp]
+              secret_is_base64: true
+
+  - name: catalog-service
+    url: http://catalog-api:8080
+    routes:
+      - name: catalog-games-protected
+        paths: [/api/games]
+        strip_path: false
+        plugins:
+          - name: jwt
+            config:
+              key_claim_name: iss
+              claims_to_verify: [exp]
+              secret_is_base64: true
+      - name: catalog-purchases-protected
+        paths: [/api/purchases]
+        strip_path: false
+        plugins:
+          - name: jwt
+            config:
+              key_claim_name: iss
+              claims_to_verify: [exp]
+              secret_is_base64: true
+      - name: catalog-reviews-protected
+        paths: [/api/v1/games]
+        strip_path: false
+        plugins:
+          - name: jwt
+            config:
+              key_claim_name: iss
+              claims_to_verify: [exp]
+              secret_is_base64: true
+
+  - name: payments-service
+    url: http://payments-api:8080
+    routes:
+      - name: payments-protected
+        paths: [/api/payments]
+        strip_path: false
+        plugins:
+          - name: jwt
+            config:
+              key_claim_name: iss
+              claims_to_verify: [exp]
+              secret_is_base64: true
