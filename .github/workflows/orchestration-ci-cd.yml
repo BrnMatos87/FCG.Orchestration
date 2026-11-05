@@ -57,7 +57,14 @@ jobs:
         run: kubectl kustomize . > rendered-manifests.yaml
 
       - name: Validar manifests Kubernetes
-        run: kubectl apply --dry-run=client --validate=false --filename rendered-manifests.yaml
+        run: |
+          docker run --rm \
+            --volume "${PWD}:/work" \
+            ghcr.io/yannh/kubeconform:v0.8.0 \
+            -strict \
+            -summary \
+            -ignore-missing-schemas \
+            /work/rendered-manifests.yaml
 
   deploy:
     name: Implantar manifests no AKS
