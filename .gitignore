@@ -38,3 +38,18 @@ Thumbs.db
 .env.*
 !.env.example
 k8s/shared-secret.yaml
+
+#############################################################
+# Terraform
+#############################################################
+
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+backend.hcl
+!backend.hcl.example
+crash.log
+crash.*.log
+**/tfplan*

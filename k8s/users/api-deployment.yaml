@@ -27,7 +27,7 @@ spec:
             - until nc -z users-sqlserver 1433; do echo "Aguardando SQL Server..."; sleep 5; done
       containers:
         - name: fcg-users-api
-          image: brnmatos/fcg-users-api:1.0.3
+          image: acrfcgfase41htwn9.azurecr.io/fcg-users-api:1.0.5
 
           imagePullPolicy: IfNotPresent
 
@@ -50,6 +50,16 @@ spec:
                 secretKeyRef:
                   name: fcg-shared-secret
                   key: Jwt__SecretKey
+            - name: AdminSeed__Email
+              valueFrom:
+                secretKeyRef:
+                  name: fcg-shared-secret
+                  key: AdminSeed__Email
+            - name: AdminSeed__Password
+              valueFrom:
+                secretKeyRef:
+                  name: fcg-shared-secret
+                  key: AdminSeed__Password
             - name: Notifications__FunctionKey
               valueFrom:
                 secretKeyRef:
@@ -74,7 +84,7 @@ spec:
 
           resources:
             requests:
-              cpu: "100m"
+              cpu: "25m"
               memory: "128Mi"
 
             limits:

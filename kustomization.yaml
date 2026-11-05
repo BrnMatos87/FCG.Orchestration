@@ -3,7 +3,6 @@ kind: Kustomization
 
 resources:
   - k8s/namespace.yaml
-  - k8s/shared-secret.yaml
   - k8s/rabbitmq.yaml
   - k8s/mongodb.yaml
   - k8s/redis.yaml
@@ -16,11 +15,6 @@ resources:
   - k8s/catalog/api-deployment.yaml
   - k8s/catalog/api-service.yaml
   - k8s/catalog/worker-deployment.yaml
-  - k8s/payments/configmap.yaml
-  - k8s/payments/sqlserver.yaml
-  - k8s/payments/api-deployment.yaml
-  - k8s/payments/api-service.yaml
-  - k8s/payments/worker-deployment.yaml
   - k8s/kong.yaml
   - k8s/prometheus.yaml
   - k8s/grafana.yaml

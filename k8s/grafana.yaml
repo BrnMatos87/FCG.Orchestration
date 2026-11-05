@@ -62,7 +62,7 @@ spec:
               mountPath: /var/lib/grafana
           resources:
             requests:
-              cpu: "100m"
+              cpu: "25m"
               memory: "128Mi"
             limits:
               cpu: "500m"
@@ -78,8 +78,7 @@ spec:
           configMap:
             name: grafana-dashboard
         - name: grafana-storage
-          persistentVolumeClaim:
-            claimName: grafana-pvc
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
@@ -94,14 +93,3 @@ spec:
     - name: http
       port: 3000
       targetPort: http
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: grafana-pvc
-  namespace: fcg
-spec:
-  accessModes: [ReadWriteOnce]
-  resources:
-    requests:
-      storage: 1Gi

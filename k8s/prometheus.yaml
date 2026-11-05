@@ -45,7 +45,7 @@ spec:
               mountPath: /prometheus
           resources:
             requests:
-              cpu: "100m"
+              cpu: "50m"
               memory: "256Mi"
             limits:
               cpu: "500m"
@@ -55,8 +55,7 @@ spec:
           configMap:
             name: prometheus-config
         - name: prometheus-storage
-          persistentVolumeClaim:
-            claimName: prometheus-pvc
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
@@ -71,14 +70,3 @@ spec:
     - name: http
       port: 9090
       targetPort: http
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: prometheus-pvc
-  namespace: fcg
-spec:
-  accessModes: [ReadWriteOnce]
-  resources:
-    requests:
-      storage: 2Gi
