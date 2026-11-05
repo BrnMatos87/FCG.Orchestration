@@ -218,6 +218,10 @@ O Prometheus coleta `http://users-api:8080/metrics` e `http://catalog-api:8080/m
 
 ## Kubernetes
 
+Este repositório é a fonte única dos manifests Kubernetes da solução. Os
+repositórios `FCG.Users` e `FCG.Catalog` mantêm apenas READMEs em suas pastas
+`k8s`, apontando para os manifests oficiais daqui.
+
 Os manifests usam o namespace `fcg`, Services internos para as APIs e um único Service `LoadBalancer` para o proxy do Kong. Prometheus e Grafana permanecem como `ClusterIP`.
 
 Crie o Secret local a partir do exemplo e substitua todos os valores antes do deploy:
