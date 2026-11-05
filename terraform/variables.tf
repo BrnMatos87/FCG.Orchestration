@@ -4,6 +4,32 @@ variable "subscription_id" {
   sensitive   = true
 }
 
+variable "tenant_id" {
+  description = "ID do tenant Microsoft Entra usado pela identidade do GitHub Actions."
+  type        = string
+}
+
+variable "github_owner" {
+  description = "Organização ou usuário proprietário dos repositórios GitHub."
+  type        = string
+}
+
+variable "github_repositories" {
+  description = "Repositórios autorizados a solicitar tokens OIDC para a Azure."
+  type        = set(string)
+  default = [
+    "FCG.Users",
+    "FCG.Catalog",
+    "FCG.Orchestration"
+  ]
+}
+
+variable "github_deploy_branch" {
+  description = "Branch de produção autorizada a publicar imagens e implantar no AKS."
+  type        = string
+  default     = "main"
+}
+
 variable "location" {
   description = "Região Azure dos recursos da FCG."
   type        = string

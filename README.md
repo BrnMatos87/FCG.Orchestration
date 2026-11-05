@@ -232,15 +232,20 @@ No PowerShell:
 Copy-Item k8s/shared-secret.example.yaml k8s/shared-secret.yaml
 ```
 
-`k8s/shared-secret.yaml` é ignorado pelo Git. Em produção, prefira um gerenciador de segredos ou integração equivalente em vez de manter o arquivo no disco.
+`k8s/shared-secret.yaml` é ignorado pelo Git e não faz parte do Kustomize. Em produção, prefira um gerenciador de segredos ou integração equivalente em vez de manter o arquivo no disco.
 
-Valide e aplique todo o stack com Kustomize:
+No primeiro deploy, aplique o Secret separadamente. Depois valide e aplique os
+recursos versionados com Kustomize:
 
 ```bash
+kubectl apply -f k8s/shared-secret.yaml
 kubectl kustomize .
 kubectl apply -k .
 kubectl get pods,svc,pvc -n fcg
 ```
+
+A pipeline não recria nem sobrescreve o Secret. Ela pressupõe que o
+`fcg-shared-secret` já exista no namespace `fcg`.
 
 Descubra o endereço externo do Gateway:
 

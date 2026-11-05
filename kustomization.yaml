@@ -3,7 +3,6 @@ kind: Kustomization
 
 resources:
   - k8s/namespace.yaml
-  - k8s/shared-secret.yaml
   - k8s/rabbitmq.yaml
   - k8s/mongodb.yaml
   - k8s/redis.yaml

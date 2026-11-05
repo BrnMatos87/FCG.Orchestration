@@ -1,0 +1,109 @@
+name: Orchestration - CI/CD
+
+on:
+  push:
+    branches:
+      - fase4
+      - main
+  pull_request:
+    branches:
+      - fase4
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: orchestration-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TERRAFORM_VERSION: 1.10.x
+  AKS_RESOURCE_GROUP: rg-fcg-fase4
+  AKS_NAME: aks-fcg-fase4
+  K8S_NAMESPACE: fcg
+
+jobs:
+  validate:
+    name: Validar Terraform e Kubernetes
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Validar formatação Terraform
+        working-directory: terraform
+        run: terraform fmt -check -recursive
+
+      - name: Inicializar Terraform sem backend
+        working-directory: terraform
+        run: terraform init -backend=false
+
+      - name: Validar Terraform
+        working-directory: terraform
+        run: terraform validate
+
+      - name: Configurar kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Renderizar manifests Kubernetes
+        run: kubectl kustomize . > rendered-manifests.yaml
+
+      - name: Validar manifests Kubernetes
+        run: kubectl apply --dry-run=client --validate=false --filename rendered-manifests.yaml
+
+  deploy:
+    name: Implantar manifests no AKS
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Autenticar no Azure com OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Obter credenciais do AKS
+        run: |
+          az aks get-credentials \
+            --resource-group "${AKS_RESOURCE_GROUP}" \
+            --name "${AKS_NAME}" \
+            --admin \
+            --overwrite-existing
+
+      - name: Aplicar manifests versionados
+        run: kubectl apply --kustomize .
+
+      - name: Aguardar componentes principais
+        run: |
+          kubectl rollout status deployment/fcg-users-api \
+            --namespace "${K8S_NAMESPACE}" \
+            --timeout=180s
+
+          kubectl rollout status deployment/fcg-catalog-api \
+            --namespace "${K8S_NAMESPACE}" \
+            --timeout=180s
+
+          kubectl rollout status deployment/fcg-catalog-worker \
+            --namespace "${K8S_NAMESPACE}" \
+            --timeout=180s
+
+          kubectl rollout status deployment/kong \
+            --namespace "${K8S_NAMESPACE}" \
+            --timeout=180s
