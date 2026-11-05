@@ -44,15 +44,14 @@ spec:
               mountPath: /data
           resources:
             requests:
-              cpu: "50m"
+              cpu: "25m"
               memory: "64Mi"
             limits:
               cpu: "250m"
               memory: "256Mi"
       volumes:
         - name: redis-storage
-          persistentVolumeClaim:
-            claimName: redis-pvc
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
@@ -67,14 +66,3 @@ spec:
     - name: redis
       port: 6379
       targetPort: redis
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: redis-pvc
-  namespace: fcg
-spec:
-  accessModes: [ReadWriteOnce]
-  resources:
-    requests:
-      storage: 1Gi

@@ -1,0 +1,7 @@
+subscription_id    = "00000000-0000-0000-0000-000000000000"
+location           = "East US"
+resource_group_name = "rg-fcg-fase4"
+aks_name            = "aks-fcg-fase4"
+acr_name_prefix     = "acrfcgfase4"
+node_vm_size        = "Standard_D2s_v5"
+node_count          = 1

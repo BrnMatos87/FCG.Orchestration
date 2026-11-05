@@ -40,7 +40,7 @@ spec:
               done
       containers:
         - name: fcg-catalog-api
-          image: brnmatos/fcg-catalog-api:1.0.4
+          image: acrfcgfase41htwn9.azurecr.io/fcg-catalog-api:1.0.4
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -80,6 +80,16 @@ spec:
                 secretKeyRef:
                   name: fcg-shared-secret
                   key: MongoDb__ConnectionString
+            - name: Elasticsearch__Endpoint
+              valueFrom:
+                secretKeyRef:
+                  name: fcg-shared-secret
+                  key: Elasticsearch__Endpoint
+            - name: Elasticsearch__ApiKey
+              valueFrom:
+                secretKeyRef:
+                  name: fcg-shared-secret
+                  key: Elasticsearch__ApiKey
 
           readinessProbe:
             tcpSocket:
@@ -98,7 +108,7 @@ spec:
             failureThreshold: 3
           resources:
             requests:
-              cpu: "100m"
+              cpu: "25m"
               memory: "128Mi"
             limits:
               cpu: "500m"

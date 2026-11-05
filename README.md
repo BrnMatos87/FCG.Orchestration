@@ -1,6 +1,7 @@
 # FCG.Orchestration
 
-Infraestrutura local e manifests Kubernetes da solução FIAP Cloud Games.
+Infraestrutura local e cloud, manifests Kubernetes e automação de entrega da
+solução FIAP Cloud Games.
 
 O repositório orquestra Users, Catalog e Payments, seus workers e dependências. A FCG.Notifications não é executada neste stack: ela permanece como Azure Function HTTP Trigger e é chamada por Users e Payments por meio de URL e Function Key externas.
 
@@ -121,6 +122,27 @@ O PDF da Fase 3 sugere que Notifications seja disparada diretamente pela mensage
     ├── catalog/
     └── payments/
 ```
+
+## Ambientes e fluxo de entrega
+
+Os ambientes usam mecanismos diferentes. O deploy manual na Azure é uma etapa
+de bootstrap e validação; depois dessa validação, o fluxo oficial passa a ser a
+pipeline.
+
+| Ambiente | Infraestrutura | Implantação da aplicação | Finalidade |
+|---|---|---|---|
+| Local | Docker Compose | `docker compose up` | desenvolvimento e testes locais |
+| Azure - primeiro deploy | Terraform cria AKS e ACR | `kubectl apply -k` após publicar as imagens | validar infraestrutura, manifests e conectividade |
+| Azure - fluxo contínuo | infraestrutura já criada pelo Terraform | GitHub Actions publica no ACR e atualiza o AKS | entrega automatizada da aplicação |
+
+O Terraform compartilhado está em [`terraform/`](terraform/) e cria somente a
+plataforma Azure. Os manifests deste repositório definem os recursos executados
+dentro do Kubernetes. As pipelines de Users e Catalog serão responsáveis por
+testar, publicar as imagens no ACR e acionar o rolling update no AKS.
+
+Não use arquivos `.env` locais como fonte de configuração da Azure. No cluster,
+configurações não sensíveis vêm de ConfigMaps e credenciais vêm de Kubernetes
+Secrets ou de um gerenciador de segredos.
 
 ## Docker Compose
 

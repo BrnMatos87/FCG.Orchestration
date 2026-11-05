@@ -20,3 +20,4 @@ data:
   ConnectionStrings__Redis: "redis:6379"
   MongoDb__DatabaseName: "FCGCatalogReviewsDb"
   MongoDb__ReviewsCollectionName: "reviews"
+  Elasticsearch__IndexName: "fcg-games"

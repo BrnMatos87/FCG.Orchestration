@@ -7,6 +7,8 @@ metadata:
     app: catalog-sqlserver
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: catalog-sqlserver
@@ -15,6 +17,18 @@ spec:
       labels:
         app: catalog-sqlserver
     spec:
+      initContainers:
+        - name: set-volume-permissions
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - chown -R 10001:0 /var/opt/mssql && chmod -R g=u /var/opt/mssql
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: catalog-sqlserver-storage
+              mountPath: /var/opt/mssql
       containers:
         - name: catalog-sqlserver
           image: mcr.microsoft.com/mssql/server:2022-latest
@@ -48,7 +62,7 @@ spec:
               mountPath: /var/opt/mssql
           resources:
             requests:
-              cpu: "500m"
+              cpu: "100m"
               memory: "1Gi"
             limits:
               cpu: "1"

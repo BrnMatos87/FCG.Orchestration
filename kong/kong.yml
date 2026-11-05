@@ -29,7 +29,6 @@ services:
               key_claim_name: iss
               claims_to_verify: [exp]
               secret_is_base64: true
-
   - name: catalog-service
     url: http://catalog-api:8080
     routes:
@@ -61,15 +60,3 @@ services:
               claims_to_verify: [exp]
               secret_is_base64: true
 
-  - name: payments-service
-    url: http://payments-api:8080
-    routes:
-      - name: payments-protected
-        paths: [/api/payments]
-        strip_path: false
-        plugins:
-          - name: jwt
-            config:
-              key_claim_name: iss
-              claims_to_verify: [exp]
-              secret_is_base64: true
