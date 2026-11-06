@@ -32,9 +32,9 @@ spec:
             - until nc -z users-sqlserver 1433; do echo "Aguardando SQL Server..."; sleep 5; done
       containers:
         - name: fcg-users-api
-          image: acrfcgfase41htwn9.azurecr.io/fcg-users-api:1.0.5
+          image: acrfcgfase41htwn9.azurecr.io/fcg-users-api:latest
 
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
 
           ports:
             - name: http
