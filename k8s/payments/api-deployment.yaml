@@ -42,8 +42,8 @@ spec:
 
       containers:
         - name: fcg-payments-api
-          image: acrfcgfase41htwn9.azurecr.io/fcg-payments-api:bootstrap
-          imagePullPolicy: IfNotPresent
+          image: acrfcgfase41htwn9.azurecr.io/fcg-payments-api:latest
+          imagePullPolicy: Always
 
           ports:
             - name: http

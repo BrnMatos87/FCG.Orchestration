@@ -42,8 +42,8 @@ spec:
 
       containers:
         - name: fcg-payments-worker
-          image: acrfcgfase41htwn9.azurecr.io/fcg-payments-worker:bootstrap
-          imagePullPolicy: IfNotPresent
+          image: acrfcgfase41htwn9.azurecr.io/fcg-payments-worker:latest
+          imagePullPolicy: Always
 
           envFrom:
             - configMapRef:

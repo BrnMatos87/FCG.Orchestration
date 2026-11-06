@@ -61,8 +61,8 @@ spec:
                   key: RabbitMq__Password
       containers:
         - name: fcg-catalog-worker
-          image: acrfcgfase41htwn9.azurecr.io/fcg-catalog-worker:1.0.2
-          imagePullPolicy: IfNotPresent
+          image: acrfcgfase41htwn9.azurecr.io/fcg-catalog-worker:latest
+          imagePullPolicy: Always
           envFrom:
             - configMapRef:
                 name: fcg-catalog-config

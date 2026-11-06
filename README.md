@@ -140,6 +140,11 @@ plataforma Azure. Os manifests deste repositório definem os recursos executados
 dentro do Kubernetes. As pipelines de Users, Catalog e Payments são responsáveis
 por testar, publicar as imagens no ACR e acionar o rolling update no AKS.
 
+Cada pipeline publica uma tag imutável com o SHA do commit e também atualiza o
+alias `latest`. O deploy do serviço usa o SHA para manter a rastreabilidade. Os
+manifests do Orchestration usam `latest` com `imagePullPolicy: Always`, evitando
+que uma reaplicação da orquestração restaure versões antigas das aplicações.
+
 Não use arquivos `.env` locais como fonte de configuração da Azure. No cluster,
 configurações não sensíveis vêm de ConfigMaps e credenciais vêm de Kubernetes
 Secrets ou de um gerenciador de segredos.

@@ -45,8 +45,8 @@ spec:
               done
       containers:
         - name: fcg-catalog-api
-          image: acrfcgfase41htwn9.azurecr.io/fcg-catalog-api:1.0.4
-          imagePullPolicy: IfNotPresent
+          image: acrfcgfase41htwn9.azurecr.io/fcg-catalog-api:latest
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 8080
