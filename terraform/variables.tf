@@ -20,7 +20,8 @@ variable "github_repositories" {
   default = [
     "FCG.Users",
     "FCG.Catalog",
-    "FCG.Orchestration"
+    "FCG.Orchestration",
+    "FCG.Payments"
   ]
 }
 
