@@ -111,6 +111,18 @@ jobs:
             --namespace "${K8S_NAMESPACE}" \
             --timeout=180s
 
+          kubectl rollout status deployment/payments-sqlserver \
+            --namespace "${K8S_NAMESPACE}" \
+            --timeout=180s
+
+          kubectl rollout status deployment/fcg-payments-api \
+            --namespace "${K8S_NAMESPACE}" \
+            --timeout=180s
+
+          kubectl rollout status deployment/fcg-payments-worker \
+            --namespace "${K8S_NAMESPACE}" \
+            --timeout=180s
+
           kubectl rollout status deployment/kong \
             --namespace "${K8S_NAMESPACE}" \
             --timeout=180s
