@@ -7,6 +7,11 @@ metadata:
     app: fcg-payments-worker
 spec:
   replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
 
   selector:
     matchLabels:
@@ -37,7 +42,7 @@ spec:
 
       containers:
         - name: fcg-payments-worker
-          image: brnmatos/fcg-payments-worker:1.0.2
+          image: acrfcgfase41htwn9.azurecr.io/fcg-payments-worker:bootstrap
           imagePullPolicy: IfNotPresent
 
           envFrom:
@@ -67,7 +72,7 @@ spec:
 
           resources:
             requests:
-              cpu: "100m"
+              cpu: "25m"
               memory: "128Mi"
 
             limits:

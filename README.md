@@ -137,8 +137,8 @@ pipeline.
 
 O Terraform compartilhado está em [`terraform/`](terraform/) e cria somente a
 plataforma Azure. Os manifests deste repositório definem os recursos executados
-dentro do Kubernetes. As pipelines de Users e Catalog serão responsáveis por
-testar, publicar as imagens no ACR e acionar o rolling update no AKS.
+dentro do Kubernetes. As pipelines de Users, Catalog e Payments são responsáveis
+por testar, publicar as imagens no ACR e acionar o rolling update no AKS.
 
 Não use arquivos `.env` locais como fonte de configuração da Azure. No cluster,
 configurações não sensíveis vêm de ConfigMaps e credenciais vêm de Kubernetes
