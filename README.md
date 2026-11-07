@@ -35,6 +35,7 @@ flowchart TB
     catalog --> catalogDb
     catalog --> mongo
     catalog --> redis
+    catalog --> elastic
     payments --> paymentsDb
     paymentsWorker --> paymentsDb
     catalogWorker --> catalogDb
@@ -46,6 +47,7 @@ flowchart TB
     rabbit -->|consome PaymentProcessed| catalogWorker
 
     notifications["Azure Functions<br/>FCG.Notifications"]
+    elastic["Elastic Cloud<br/>Elasticsearch gerenciado"]
     users -.->|HTTP · UserCreated| notifications
     paymentsWorker -.->|HTTP · PaymentProcessed| notifications
 
@@ -69,7 +71,7 @@ flowchart TB
     class users,catalog,payments,paymentsWorker,catalogWorker service;
     class usersDb,catalogDb,paymentsDb,mongo,redis storage;
     class rabbit messaging;
-    class notifications external;
+    class notifications,elastic external;
     class prometheus,grafana observe;
 ```
 
@@ -79,23 +81,27 @@ flowchart TB
 - O dashboard `FCG Overview` é provisionado automaticamente no Grafana.
 - RabbitMQ permanece somente nos fluxos assíncronos de Catalog e Payments.
 - MongoDB armazena avaliações do catálogo e Redis fornece cache ao Catalog.
+- Elastic Cloud mantém o índice de jogos usado pela busca fuzzy por relevância.
 - Cada serviço SQL Server possui armazenamento persistente próprio.
 
-## Conformidade com a Fase 3
+## Conformidade com a Fase 4
 
 | Requisito | Implementação |
 |---|---|
-| API Gateway único | Kong DB-less com configuração declarativa versionada |
-| JWT no Gateway | plugin JWT nas rotas privadas; login e registro públicos |
-| Observabilidade - Opção A | Prometheus e Grafana implantados por Compose e manifests Kubernetes |
-| Métricas obrigatórias | scrape de Users API e Catalog API |
-| Dashboard | throughput, latência p50/p95, status HTTP e erros 5xx |
-| Persistência poliglota | MongoDB para avaliações do Catalog |
-| Cache distribuído | Redis para consultas do Catalog |
-| Serverless | FCG.Notifications em Azure Functions com Terraform no repositório próprio |
-| Kubernetes | Deployments, Services, ConfigMaps, Secret de exemplo, probes, recursos e PVCs |
+| Kubernetes gerenciado | AKS provisionado por Terraform |
+| Registry privado | Azure Container Registry sem usuário administrador |
+| Exposição externa | Kong publicado por um único Service `LoadBalancer` |
+| NoSQL obrigatório | MongoDB com PVC para avaliações do Catalog |
+| Cache obrigatório | Redis autenticado para consultas do Catalog |
+| Busca avançada | Elastic Cloud, indexação no Catalog e endpoint com fuzzy search |
+| CI/CD mínimo | GitHub Actions para Users e Catalog; Payments também automatizado |
+| Imagens versionadas | tag imutável pelo SHA e alias `latest` |
+| Deploy sem downtime | rolling update dos Deployments no AKS |
+| Gestão de segredos | Kubernetes Secret fora do Git; valores públicos em ConfigMaps |
 
-O PDF da Fase 3 sugere que Notifications seja disparada diretamente pela mensageria. A decisão aprovada para a solução atual usa HTTP Trigger: Users e Payments realizam POST na Azure Function. Essa exceção afeta somente o trigger de Notifications; RabbitMQ permanece no fluxo assíncrono entre Catalog e Payments.
+Payments e Notifications excedem o escopo mínimo obrigatório da Fase 4. A Azure
+Function continua sendo chamada por HTTP por Users e Payments, enquanto o
+RabbitMQ permanece no fluxo assíncrono de compra entre Catalog e Payments.
 
 ## Estrutura
 
@@ -144,6 +150,10 @@ Cada pipeline publica uma tag imutável com o SHA do commit e também atualiza o
 alias `latest`. O deploy do serviço usa o SHA para manter a rastreabilidade. Os
 manifests do Orchestration usam `latest` com `imagePullPolicy: Always`, evitando
 que uma reaplicação da orquestração restaure versões antigas das aplicações.
+
+O deployment do Elastic Cloud é um serviço gerenciado externo e não é criado por
+este Terraform. Seu endpoint e sua API Key são injetados no Catalog pelo Secret
+`fcg-shared-secret`, sem valores sensíveis nos manifests versionados.
 
 Não use arquivos `.env` locais como fonte de configuração da Azure. No cluster,
 configurações não sensíveis vêm de ConfigMaps e credenciais vêm de Kubernetes
@@ -224,8 +234,8 @@ O Prometheus coleta `http://users-api:8080/metrics` e `http://catalog-api:8080/m
 ## Kubernetes
 
 Este repositório é a fonte única dos manifests Kubernetes da solução. Os
-repositórios `FCG.Users` e `FCG.Catalog` mantêm apenas READMEs em suas pastas
-`k8s`, apontando para os manifests oficiais daqui.
+repositórios `FCG.Users`, `FCG.Catalog` e `FCG.Payments` mantêm apenas READMEs em
+suas pastas `k8s`, apontando para os manifests oficiais daqui.
 
 Os manifests usam o namespace `fcg`, Services internos para as APIs e um único Service `LoadBalancer` para o proxy do Kong. Prometheus e Grafana permanecem como `ClusterIP`.
 
@@ -264,10 +274,14 @@ kubectl get service kong-proxy -n fcg
 
 ### Collection do Postman
 
-A Collection e o Environment prontos para a apresentação da Fase 3 estão em
-[`postman/`](postman/). Importe os dois arquivos e selecione `FCG - Fase 3 Local`.
-Todas as chamadas externas passam pelo Kong. A ordem sugerida da demonstração e
-a configuração do endereço do Gateway estão em [`postman/README.md`](postman/README.md).
+A Collection e o Environment da apresentação da Fase 4 estão em
+[`postman/`](postman/). Importe `FCG-Fase-4.postman_collection.json` e
+`FCG-Fase-4.postman_environment.json`, preencha localmente as credenciais e
+selecione `FCG - Fase 4`. Todas as chamadas externas passam pelo Kong.
+
+O roteiro demonstra login, criação e indexação de jogo, cache miss/hit no Redis,
+busca fuzzy no Elastic Cloud, avaliação no MongoDB e o fluxo adicional de
+pagamento. Consulte [`postman/README.md`](postman/README.md) antes da gravação.
 
 Acesse as ferramentas internas por port-forward quando necessário:
 
@@ -297,11 +311,14 @@ O deploy oficial da Function é feito em duas etapas no repositório `FCG.Notifi
 
 ## Imagens dos serviços
 
-- `brnmatos/fcg-users-api:1.0.3`
-- `brnmatos/fcg-catalog-api:1.0.4`
-- `brnmatos/fcg-catalog-worker:1.0.2`
-- `brnmatos/fcg-payments-api:1.0.2`
-- `brnmatos/fcg-payments-worker:1.0.2`
+- `acrfcgfase41htwn9.azurecr.io/fcg-users-api:latest`
+- `acrfcgfase41htwn9.azurecr.io/fcg-catalog-api:latest`
+- `acrfcgfase41htwn9.azurecr.io/fcg-catalog-worker:latest`
+- `acrfcgfase41htwn9.azurecr.io/fcg-payments-api:latest`
+- `acrfcgfase41htwn9.azurecr.io/fcg-payments-worker:latest`
+
+As pipelines também publicam a mesma imagem com o SHA completo do commit para
+auditoria e rollback.
 
 ## Pré-requisitos
 

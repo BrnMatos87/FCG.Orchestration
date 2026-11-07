@@ -1,49 +1,74 @@
-# Postman — FCG Fase 3
+# Postman - FCG Fase 4
 
-Importe os dois arquivos no Postman:
+Importe estes arquivos no Postman:
 
-- `FCG-Fase-3.postman_collection.json`;
-- `FCG-Fase-3-Local.postman_environment.json`.
+- `FCG-Fase-4.postman_collection.json`;
+- `FCG-Fase-4.postman_environment.json`.
 
-Selecione **FCG - Fase 3 Local** no canto superior direito antes de executar os
-requests. Os scripts de login salvam os JWTs nesse Environment e também nas
-variáveis da Collection.
+Selecione **FCG - Fase 4** e preencha localmente `adminPassword` e
+`testUserPassword`. Preencha `newUserPassword` somente se for demonstrar a troca
+de senha. Os valores são secretos e ficam vazios no Git. Os scripts de login
+salvam os JWTs no Environment e nas variáveis da Collection.
 
-Todos os requests externos usam `kongBaseUrl`. O padrão é `http://localhost:8000`. Para usá-lo com Kubernetes:
+Todos os requests externos usam `kongBaseUrl`. Para acessar o cluster por
+port-forward, mantenha `http://localhost:8000` e execute:
 
-```bash
+```powershell
 kubectl port-forward service/kong-proxy 8000:80 -n fcg
 ```
 
-Se `kong-proxy` tiver IP externo, altere `kongBaseUrl` nas variáveis da Collection para `http://<EXTERNAL-IP>`.
+Para demonstrar o Load Balancer, substitua `kongBaseUrl` por
+`http://<EXTERNAL-IP>` obtido com:
 
-## Ordem sugerida para a apresentação
+```powershell
+kubectl get service kong-proxy -n fcg
+```
 
-1. `Login - Administrador` salva `adminJwtToken`.
-2. `Registrar usuário - Público` cria um usuário comum, salva `userId` e aciona Notifications por HTTP.
-3. `Login - Usuário normal` salva `userJwtToken`.
-4. `Criar usuário - Administrador` demonstra uma operação administrativa e salva `managedUserId`.
-5. `Criar jogo` salva `gameId` usando o token administrativo.
-6. Liste o catálogo disponível, crie uma avaliação e crie uma compra usando o token do usuário normal.
-7. Aguarde o processamento assíncrono e consulte o pagamento com o token administrativo e a biblioteca com o token normal.
+## Roteiro obrigatório da Fase 4
 
-Cada request protegido está associado ao JWT apropriado:
+Execute as pastas e requests na ordem apresentada:
 
-- `adminJwtToken`: criação e manutenção de usuários/jogos e consulta de pagamentos;
-- `userJwtToken`: consultas permitidas a usuários, avaliações, compras e biblioteca;
-- sem token: login e registro público.
+1. Faça login como administrador.
+2. Registre um usuário e faça login com ele.
+3. Crie um jogo. A criação invalida a lista em cache e indexa o documento no
+   Elastic Cloud.
+4. Execute `Listar catálogo - 1ª consulta (cache miss)`. O script salva o tempo
+   em `cacheMissResponseTime`.
+5. Execute `Listar catálogo - 2ª consulta (cache hit)`. O script exibe no console
+   os dois tempos. Confirme nos logs do Catalog a mensagem `CacheStatus: HIT`.
+6. Execute `Busca fuzzy - erro de digitação`. O termo `Presentaton` contém um
+   erro proposital e deve localizar o jogo `Presentation` por relevância.
+7. Atualize o jogo e repita a busca para demonstrar a sincronização do índice.
+8. Crie e liste uma avaliação para demonstrar a persistência no MongoDB.
 
-`Listar catálogo disponível - User` mostra os jogos disponíveis na loja; “User”
-indica apenas o JWT usado. `Listar jogos adquiridos - Somente aprovados` consulta
-a biblioteca e retorna apenas compras aprovadas.
+Para acompanhar o cache durante os passos 4 e 5:
 
-A Collection monta explicitamente o header `Authorization` no formato
-`Bearer {{adminJwtToken}}` ou `Bearer {{userJwtToken}}`, conforme a role exigida.
-As variáveis armazenam somente o JWT iniciado por `eyJ`, sem o texto `Bearer` e
-sem aspas.
+```powershell
+kubectl logs -n fcg deployment/fcg-catalog-api --tail=100 -f
+```
 
-Os e-mails e títulos são gerados com timestamp, permitindo repetir a demonstração sem conflito de unicidade.
+O tempo da segunda chamada é uma evidência auxiliar. A confirmação determinística
+do cache hit é a mensagem do Catalog nos logs.
 
-## Notifications
+## Fluxo adicional de compra
 
-Os HTTP Triggers da Azure Function são integração interna, não endpoints públicos do cliente. A criação do usuário e o processamento do pagamento chamam Notifications por HTTP. Dessa forma, todas as chamadas externas desta apresentação entram pelo Kong sem expor a Function indevidamente.
+Depois do roteiro obrigatório, execute:
+
+1. `Criar compra` com o usuário normal;
+2. aguarde o processamento assíncrono;
+3. `Consultar pagamento por Order ID` com o administrador;
+4. `Listar jogos adquiridos - Somente aprovados` com o usuário normal.
+
+Esse fluxo demonstra Catalog, RabbitMQ, Payments e Notifications, mas não é
+necessário para provar MongoDB, Redis e Elasticsearch.
+
+## Tokens e variáveis
+
+- `adminJwtToken`: manutenção de usuários e jogos e consulta de pagamentos;
+- `userJwtToken`: catálogo, avaliações, compras e biblioteca;
+- `gameId`, `userId` e `orderId`: preenchidos automaticamente pelos testes;
+- `cacheMissResponseTime`: tempo em milissegundos da primeira consulta;
+- `fuzzySearchTerm`: termo propositalmente digitado com erro.
+
+Os HTTP Triggers de Notifications são internos. Todas as chamadas do cliente
+entram pelo Kong; a Azure Function não deve ser exposta na Collection.

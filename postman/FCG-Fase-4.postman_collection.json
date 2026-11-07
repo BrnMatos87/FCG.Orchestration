@@ -1,8 +1,8 @@
 {
   "info": {
-    "_postman_id": "57d64430-540c-4df9-8527-d84d79320387",
-    "name": "FCG - Tech Challenge Fase 3",
-    "description": "Collection para apresentação. Todos os endpoints externos usam o Kong via {{kongBaseUrl}}. Há tokens separados para Administrator e User, aplicados conforme a autorização de cada endpoint. Os fluxos de cadastro e compra acionam internamente a Azure Function de Notifications.",
+    "_postman_id": "68955b08-c4e5-42d0-92a0-5c29a4610628",
+    "name": "FCG - Tech Challenge Fase 4",
+    "description": "Collection para demonstrar AKS, CI/CD, MongoDB, Redis e busca fuzzy no Elastic Cloud. Todos os endpoints externos usam o Kong via {{kongBaseUrl}}. O fluxo adicional de compra aciona Payments e Notifications.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -22,11 +22,14 @@
     { "key": "registeredUserEmail", "value": "", "type": "string" },
     { "key": "managedUserEmail", "value": "", "type": "string" },
     { "key": "testUserPassword", "value": "", "type": "string" },
+    { "key": "newUserPassword", "value": "", "type": "string" },
     { "key": "userId", "value": "00000000-0000-0000-0000-000000000001", "type": "string" },
     { "key": "managedUserId", "value": "00000000-0000-0000-0000-000000000004", "type": "string" },
     { "key": "gameId", "value": "00000000-0000-0000-0000-000000000002", "type": "string" },
     { "key": "orderId", "value": "00000000-0000-0000-0000-000000000003", "type": "string" },
-    { "key": "gameTitle", "value": "FCG Presentation Game", "type": "string" }
+    { "key": "gameTitle", "value": "FCG Presentation Game", "type": "string" },
+    { "key": "fuzzySearchTerm", "value": "Presentaton", "type": "string" },
+    { "key": "cacheMissResponseTime", "value": "", "type": "string" }
   ],
   "item": [
     {
@@ -191,7 +194,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"newPassword\": \"NewUser@12345\"\n}",
+              "raw": "{\n  \"newPassword\": \"{{newUserPassword}}\"\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": "{{kongBaseUrl}}/api/v1/users/{{userId}}/password"
@@ -241,19 +244,77 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"{{gameTitle}}\",\n  \"description\": \"Jogo criado na apresentação da Fase 3\",\n  \"price\": 99.90,\n  \"category\": \"Action\"\n}",
+              "raw": "{\n  \"title\": \"{{gameTitle}}\",\n  \"description\": \"Jogo criado na apresentação da Fase 4\",\n  \"price\": 149.90,\n  \"category\": \"Action\"\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": "{{kongBaseUrl}}/api/games"
           }
         },
         {
-          "name": "Listar catálogo disponível - User",
+          "name": "Listar catálogo - 1ª consulta (cache miss)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('Catálogo retornado', () => pm.response.to.have.status(200));",
+                "pm.collectionVariables.set('cacheMissResponseTime', String(pm.response.responseTime));",
+                "pm.environment.set('cacheMissResponseTime', String(pm.response.responseTime));",
+                "console.log('Primeira consulta (cache miss esperado):', pm.response.responseTime, 'ms');"
+              ]
+            }
+          }],
           "request": {
             "auth": { "type": "apikey", "apikey": [{ "key": "value", "value": "Bearer {{userJwtToken}}", "type": "string" }, { "key": "key", "value": "Authorization", "type": "string" }, { "key": "in", "value": "header", "type": "string" }] },
             "method": "GET",
             "header": [],
-            "url": "{{kongBaseUrl}}/api/games"
+            "url": "{{kongBaseUrl}}/api/games",
+            "description": "Execute logo após criar ou atualizar o jogo. A alteração invalida catalog:games, por isso esta consulta deve buscar no SQL Server e preencher o Redis."
+          }
+        },
+        {
+          "name": "Listar catálogo - 2ª consulta (cache hit)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('Catálogo retornado pelo mesmo endpoint', () => pm.response.to.have.status(200));",
+                "const first = Number(pm.collectionVariables.get('cacheMissResponseTime') || pm.environment.get('cacheMissResponseTime') || 0);",
+                "console.log('Primeira consulta:', first, 'ms');",
+                "console.log('Segunda consulta (cache hit esperado):', pm.response.responseTime, 'ms');",
+                "pm.test('Tempo da primeira consulta foi registrado', () => pm.expect(first).to.be.above(0));"
+              ]
+            }
+          }],
+          "request": {
+            "auth": { "type": "apikey", "apikey": [{ "key": "value", "value": "Bearer {{userJwtToken}}", "type": "string" }, { "key": "key", "value": "Authorization", "type": "string" }, { "key": "in", "value": "header", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": "{{kongBaseUrl}}/api/games",
+            "description": "Repete a consulta sem alterações. Confirme CacheStatus: HIT nos logs do Catalog; o tempo de resposta é apenas evidência auxiliar."
+          }
+        },
+        {
+          "name": "Busca fuzzy - erro de digitação",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('Busca fuzzy executada', () => pm.response.to.have.status(200));",
+                "const results = pm.response.json();",
+                "pm.test('Busca retornou resultados', () => pm.expect(results).to.be.an('array').that.is.not.empty);",
+                "pm.test('Resultados possuem relevância', () => pm.expect(results[0]).to.have.property('relevance'));"
+              ]
+            }
+          }],
+          "request": {
+            "auth": { "type": "apikey", "apikey": [{ "key": "value", "value": "Bearer {{userJwtToken}}", "type": "string" }, { "key": "key", "value": "Authorization", "type": "string" }, { "key": "in", "value": "header", "type": "string" }] },
+            "method": "GET",
+            "header": [],
+            "url": "{{kongBaseUrl}}/api/games/search?q={{fuzzySearchTerm}}&page=1&pageSize=10",
+            "description": "Presentaton contém um erro proposital. Aguarde alguns segundos após criar o jogo para a atualização do índice ficar pesquisável."
           }
         },
         {
@@ -272,7 +333,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"{{gameTitle}} - Atualizado\",\n  \"description\": \"Descrição atualizada pelo Kong\",\n  \"price\": 89.90,\n  \"category\": \"Action\"\n}",
+              "raw": "{\n  \"title\": \"{{gameTitle}} - Atualizado\",\n  \"description\": \"Descrição atualizada pelo Kong\",\n  \"price\": 139.90,\n  \"category\": \"Action\"\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": "{{kongBaseUrl}}/api/games/{{gameId}}"
@@ -293,7 +354,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"rating\": 5,\n  \"comment\": \"Excelente demonstração da Fase 3.\"\n}",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"rating\": 5,\n  \"comment\": \"Excelente demonstração da Fase 4.\"\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": "{{kongBaseUrl}}/api/v1/games/{{gameId}}/reviews"
