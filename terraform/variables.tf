@@ -37,6 +37,12 @@ variable "notifications_github_repository" {
   default     = "FCG.Notifications"
 }
 
+variable "notifications_github_environment" {
+  description = "GitHub Environment autorizado a implantar a FCG.Notifications."
+  type        = string
+  default     = "production"
+}
+
 variable "notifications_resource_group_name" {
   description = "Resource Group existente e exclusivo da FCG.Notifications."
   type        = string

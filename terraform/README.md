@@ -171,4 +171,5 @@ terraform output -raw github_actions_subscription_id
 
 Os valores correspondem, respectivamente, aos secrets `AZURE_CLIENT_ID`,
 `AZURE_TENANT_ID` e `AZURE_SUBSCRIPTION_ID`. O vínculo federado aceita tokens
-somente da branch `main` desse repositório.
+somente do Environment `production` desse repositório. A regra de deployment do
+próprio Environment restringe a execução à branch `main`.
