@@ -38,3 +38,8 @@ output "github_actions_subscription_id" {
   value       = var.subscription_id
   sensitive   = true
 }
+
+output "notifications_github_actions_client_id" {
+  description = "Client ID OIDC exclusivo que deve ser cadastrado como AZURE_CLIENT_ID no repositório FCG.Notifications."
+  value       = azuread_application_registration.notifications_github_actions.client_id
+}

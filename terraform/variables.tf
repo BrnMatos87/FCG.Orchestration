@@ -31,6 +31,30 @@ variable "github_deploy_branch" {
   default     = "main"
 }
 
+variable "notifications_github_repository" {
+  description = "Repositório autorizado a implantar a Azure Function de Notifications."
+  type        = string
+  default     = "FCG.Notifications"
+}
+
+variable "notifications_resource_group_name" {
+  description = "Resource Group existente e exclusivo da FCG.Notifications."
+  type        = string
+  default     = "fcg-notifications-dev-rg"
+}
+
+variable "terraform_state_resource_group_name" {
+  description = "Resource Group da Storage Account usada como backend Terraform."
+  type        = string
+  default     = "rg-fcg-tfstate"
+}
+
+variable "terraform_state_storage_account_name" {
+  description = "Storage Account existente que armazena os states remotos."
+  type        = string
+  default     = "stfcgtfstatea453974d"
+}
+
 variable "location" {
   description = "Região Azure dos recursos da FCG."
   type        = string

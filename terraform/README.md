@@ -152,3 +152,23 @@ imagens no ACR:
 terraform output
 terraform output -raw get_credentials_command
 ```
+
+O mesmo state também cria uma identidade OIDC exclusiva para o deploy da
+`FCG.Notifications`. Ela recebe somente:
+
+- `Contributor` no Resource Group `fcg-notifications-dev-rg`;
+- `Reader` na Storage Account do state;
+- `Storage Blob Data Contributor` na Storage Account do state.
+
+Depois do `apply`, cadastre no GitHub Environment `production` do repositório
+`FCG.Notifications`:
+
+```powershell
+terraform output -raw notifications_github_actions_client_id
+terraform output -raw github_actions_tenant_id
+terraform output -raw github_actions_subscription_id
+```
+
+Os valores correspondem, respectivamente, aos secrets `AZURE_CLIENT_ID`,
+`AZURE_TENANT_ID` e `AZURE_SUBSCRIPTION_ID`. O vínculo federado aceita tokens
+somente da branch `main` desse repositório.
