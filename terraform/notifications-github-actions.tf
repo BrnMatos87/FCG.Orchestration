@@ -18,11 +18,11 @@ resource "azuread_service_principal" "notifications_github_actions" {
 
 resource "azuread_application_federated_identity_credential" "notifications_github_actions" {
   application_id = azuread_application_registration.notifications_github_actions.id
-  display_name   = "github-fcg-notifications-${var.github_deploy_branch}"
-  description    = "Autoriza ${var.github_owner}/${var.notifications_github_repository} na branch ${var.github_deploy_branch}."
+  display_name   = "github-fcg-notifications-${var.notifications_github_environment}"
+  description    = "Autoriza ${var.github_owner}/${var.notifications_github_repository} no Environment ${var.notifications_github_environment}."
   audiences      = ["api://AzureADTokenExchange"]
   issuer         = "https://token.actions.githubusercontent.com"
-  subject        = "repo:${var.github_owner}/${var.notifications_github_repository}:ref:refs/heads/${var.github_deploy_branch}"
+  subject        = "repo:${var.github_owner}/${var.notifications_github_repository}:environment:${var.notifications_github_environment}"
 }
 
 resource "azurerm_role_assignment" "notifications_github_actions_contributor" {
