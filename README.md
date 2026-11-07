@@ -305,9 +305,14 @@ A infraestrutura serverless da FCG.Notifications é responsabilidade do Terrafor
 - `Notifications__BaseUrl`: hostname base da Azure Function, sem endpoint hardcoded.
 - `Notifications__FunctionKey`: chave de acesso, quando a Function não estiver configurada como anônima.
 
-Não há container, Deployment, RabbitMQ consumer nem recursos Azure da Notifications neste repositório.
+Não há container, Deployment, RabbitMQ consumer nem recursos de execução da
+Notifications neste repositório. O Terraform mantém somente a identidade OIDC e
+as permissões mínimas usadas pelo pipeline serverless.
 
-O deploy oficial da Function é feito em duas etapas no repositório `FCG.Notifications`: Terraform provisiona a infraestrutura e a publicação do pacote da Function é executada separadamente. O Orchestration consome apenas a URL e a Function Key resultantes.
+O deploy oficial da Function pertence ao repositório `FCG.Notifications`. Após o
+bootstrap manual, pushes na `main` aplicam o Terraform e publicam o pacote sob
+aprovação do GitHub Environment `production`. O Orchestration consome apenas a
+URL e a Function Key resultantes.
 
 ## Imagens dos serviços
 
