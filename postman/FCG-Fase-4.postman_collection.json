@@ -221,6 +221,27 @@
       "name": "03 - Catalog - Games",
       "item": [
         {
+          "name": "Consultar versão implantada",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('Versão do Catalog retornada', () => pm.response.to.have.status(200));",
+                "const body = pm.response.json();",
+                "pm.expect(body.service).to.eql('FCG.Catalog.Api');",
+                "pm.expect(body.version).to.match(/^(local|[0-9a-f]{40})$/);",
+                "console.log('Versão implantada do Catalog:', body.version);"
+              ]
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{kongBaseUrl}}/api/games/version"
+          }
+        },
+        {
           "name": "Criar jogo",
           "event": [
             {

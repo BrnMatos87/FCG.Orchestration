@@ -30,18 +30,21 @@ Execute as pastas e requests na ordem apresentada:
 
 1. Faça login como administrador.
 2. Registre um usuário e faça login com ele.
-3. Crie um jogo. A criação invalida a lista em cache e indexa o documento no
+3. Execute `Consultar versão implantada` para identificar o SHA da imagem do
+   Catalog em execução. Esse valor pode ser comparado com a tag do ACR antes e
+   depois de um live deploy.
+4. Crie um jogo. A criação invalida a lista em cache e indexa o documento no
    Elastic Cloud.
-4. Execute `Listar catálogo - 1ª consulta (cache miss)`. O script salva o tempo
+5. Execute `Listar catálogo - 1ª consulta (cache miss)`. O script salva o tempo
    em `cacheMissResponseTime`.
-5. Execute `Listar catálogo - 2ª consulta (cache hit)`. O script exibe no console
+6. Execute `Listar catálogo - 2ª consulta (cache hit)`. O script exibe no console
    os dois tempos. Confirme nos logs do Catalog a mensagem `CacheStatus: HIT`.
-6. Execute `Busca fuzzy - erro de digitação`. O termo `Presentaton` contém um
+7. Execute `Busca fuzzy - erro de digitação`. O termo `Presentaton` contém um
    erro proposital e deve localizar o jogo `Presentation` por relevância.
-7. Atualize o jogo e repita a busca para demonstrar a sincronização do índice.
-8. Crie e liste uma avaliação para demonstrar a persistência no MongoDB.
+8. Atualize o jogo e repita a busca para demonstrar a sincronização do índice.
+9. Crie e liste uma avaliação para demonstrar a persistência no MongoDB.
 
-Para acompanhar o cache durante os passos 4 e 5:
+Para acompanhar o cache durante os passos 5 e 6:
 
 ```powershell
 kubectl logs -n fcg deployment/fcg-catalog-api --tail=100 -f
